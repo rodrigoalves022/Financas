@@ -13,6 +13,13 @@ type DebtRow = Debt & {
   payoffMonths: number;
 };
 
+type PersonDebtSummary = {
+  counterparty: string;
+  receivable: number;
+  payable: number;
+  balance: number;
+};
+
 const riskOf = (rate: number) => {
   if (rate >= 3) return 'Alto';
   if (rate >= 1) return 'Medio';
@@ -58,6 +65,18 @@ export function Block4Debts() {
     };
   }, [rows]);
 
+  const summaryRows = useMemo<PersonDebtSummary[]>(() => {
+    const groups = new Map<string, PersonDebtSummary>();
+    rows.forEach(row => {
+      const current = groups.get(row.counterparty) || { counterparty: row.counterparty, receivable: 0, payable: 0, balance: 0 };
+      if (row.type === 'a_receber') current.receivable += row.remaining;
+      if (row.type === 'a_pagar') current.payable += row.remaining;
+      current.balance = current.receivable - current.payable;
+      groups.set(row.counterparty, current);
+    });
+    return Array.from(groups.values()).sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+  }, [rows]);
+
   const payoffDebt = rows.filter(item => item.type === 'a_pagar' && item.remaining > 0).sort((a, b) => b.remaining - a.remaining)[0];
   const payoffRows = payoffDebt ? getDebtPayoffRows({ ...payoffDebt, totalAmount: payoffDebt.remaining, paidAmount: 0 }, extraPayment) : [];
   const debtByType = [
@@ -74,6 +93,13 @@ export function Block4Debts() {
     { key: 'interestRate', header: 'Juros', accessor: row => `${row.interestRate}%`, align: 'center', sortValue: row => row.interestRate },
     { key: 'risk', header: 'Risco', accessor: row => row.risk, align: 'center', render: row => <span className={`badge ${row.risk === 'Alto' ? 'danger' : row.risk === 'Medio' ? 'warning' : 'success'}`}>{row.risk}</span> },
     { key: 'startDate', header: 'Inicio', accessor: row => formatDate(row.startDate), align: 'center', sortValue: row => row.startDate },
+  ];
+
+  const summaryColumns: Column<PersonDebtSummary>[] = [
+    { key: 'counterparty', header: 'Pessoa/entidade', accessor: row => row.counterparty },
+    { key: 'receivable', header: 'A receber', accessor: row => row.receivable, render: row => formatBRL(row.receivable), align: 'right' },
+    { key: 'payable', header: 'A pagar', accessor: row => row.payable, render: row => formatBRL(row.payable), align: 'right' },
+    { key: 'balance', header: 'Saldo', accessor: row => row.balance, render: row => formatBRL(row.balance), align: 'right' },
   ];
 
   if (!rows.length) {
@@ -125,7 +151,12 @@ export function Block4Debts() {
       </div>
 
       <div className="chart-card wide">
-        <h3>Dividas e valores a receber</h3>
+        <h3>Resumo por pessoa</h3>
+        <DataTable rows={summaryRows} columns={summaryColumns} searchPlaceholder="Buscar pessoa..." initialPageSize={6} />
+      </div>
+
+      <div className="chart-card wide">
+        <h3>Detalhamento das dividas</h3>
         <DataTable rows={rows} columns={columns} searchPlaceholder="Buscar pessoa, origem ou tipo..." initialPageSize={8} />
       </div>
     </div>

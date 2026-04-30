@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Category, Debt, MonthlyIncome, Transaction } from '../types';
+import type { Alias, Category, Debt, LegacyMigrationData, MonthlyIncome, Transaction } from '../types';
 import { DEFAULT_CATEGORIES } from '../utils/constants';
 import { parseCSV, parseOFX } from '../utils/csvParser';
 import { normalizeText } from '../utils/formatters';
@@ -10,6 +10,7 @@ interface FinanceState {
   debts: Debt[];
   monthlyIncomes: MonthlyIncome[];
   categories: Category[];
+  aliases: Alias[];
   processedFiles: string[];
 }
 
@@ -19,6 +20,7 @@ interface FinanceContextType extends FinanceState {
   setDebts: React.Dispatch<React.SetStateAction<Debt[]>>;
   setMonthlyIncomes: React.Dispatch<React.SetStateAction<MonthlyIncome[]>>;
   setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
+  setAliases: React.Dispatch<React.SetStateAction<Alias[]>>;
   addIncome: (income: MonthlyIncome) => void;
   addDebt: (debt: Debt) => void;
   linkTransactionToDebt: (transactionId: string, debtId: string) => void;
@@ -47,27 +49,107 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [debts, setDebts] = useState<Debt[]>(() => load('finance_debts_v2', []));
   const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>(() => load('finance_incomes_v2', []));
   const [categories, setCategories] = useState<Category[]>(() => load('finance_categories_v2', DEFAULT_CATEGORIES));
+  const [aliases, setAliases] = useState<Alias[]>(() => load('finance_aliases_v2', []));
   const [processedFiles, setProcessedFiles] = useState<string[]>(() => load('finance_processed_files_v2', []));
   const [autoImportStatus, setAutoImportStatus] = useState('Aguardando faturas');
+  const [migrationReady, setMigrationReady] = useState(false);
 
   useEffect(() => localStorage.setItem('finance_transactions_v2', JSON.stringify(transactions)), [transactions]);
   useEffect(() => localStorage.setItem('finance_debts_v2', JSON.stringify(debts)), [debts]);
   useEffect(() => localStorage.setItem('finance_incomes_v2', JSON.stringify(monthlyIncomes)), [monthlyIncomes]);
   useEffect(() => localStorage.setItem('finance_categories_v2', JSON.stringify(categories)), [categories]);
+  useEffect(() => localStorage.setItem('finance_aliases_v2', JSON.stringify(aliases)), [aliases]);
   useEffect(() => localStorage.setItem('finance_processed_files_v2', JSON.stringify(processedFiles)), [processedFiles]);
 
   const addTransactions = (incoming: Transaction[]) => {
     setTransactions(previous => {
       const existingIds = new Set(previous.map(item => item.id));
       const existingKeys = new Set(previous.map(uniqueKey));
+      const incomingKeys = new Set<string>();
       const deduped = incoming
-        .filter(item => !existingIds.has(item.id))
-        .map(item => ({ ...item, status: existingKeys.has(uniqueKey(item)) ? 'possible_duplicate' as const : 'ok' as const }));
+        .filter(item => {
+          const key = uniqueKey(item);
+          if (existingIds.has(item.id) || existingKeys.has(key) || incomingKeys.has(key)) return false;
+          incomingKeys.add(key);
+          return true;
+        })
+        .map(item => ({ ...item, status: 'ok' as const }));
       return [...previous, ...deduped].sort((a, b) => b.date.localeCompare(a.date));
     });
   };
 
   useEffect(() => {
+    let cancelled = false;
+    const importLegacy = async () => {
+      try {
+        const response = await fetch('/migration/legacy-data.json', { cache: 'no-store' });
+        if (!response.ok) {
+          setMigrationReady(true);
+          return;
+        }
+        const data = await response.json() as LegacyMigrationData;
+        if (localStorage.getItem('finance_legacy_migration_version') === data.schemaVersion) {
+          setMigrationReady(true);
+          return;
+        }
+        if (cancelled) return;
+
+        setCategories(previous => {
+          const byId = new Map(previous.map(item => [item.id, item]));
+          data.categories.forEach(category => {
+            const current = byId.get(category.id);
+            byId.set(category.id, current
+              ? { ...current, keywords: Array.from(new Set([...current.keywords, ...category.keywords])) }
+              : category);
+          });
+          return Array.from(byId.values());
+        });
+        setAliases(previous => {
+          const byOriginal = new Map(previous.map(item => [normalizeText(item.original), item]));
+          data.aliases.forEach(alias => byOriginal.set(normalizeText(alias.original), alias));
+          return Array.from(byOriginal.values());
+        });
+        setMonthlyIncomes(previous => {
+          const byMonth = new Map(previous.map(item => [item.month, item]));
+          data.monthlyIncomes.forEach(item => {
+            const current = byMonth.get(item.month);
+            byMonth.set(item.month, current ? { ...current, amount: current.amount + item.amount } : item);
+          });
+          return Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month));
+        });
+        setDebts(previous => {
+          const ids = new Set(previous.map(item => item.id));
+          return [...data.debts.filter(item => !ids.has(item.id)), ...previous];
+        });
+        setTransactions(previous => {
+          const ids = new Set(previous.map(item => item.id));
+          const keys = new Set(previous.map(uniqueKey));
+          const importedKeys = new Set<string>();
+          const imported = data.transactions
+            .filter(item => {
+              const key = uniqueKey(item);
+              if (ids.has(item.id) || keys.has(key) || importedKeys.has(key)) return false;
+              importedKeys.add(key);
+              return true;
+            })
+            .map(item => ({ ...item, status: 'ok' as const }));
+          return [...previous, ...imported].sort((a, b) => b.date.localeCompare(a.date));
+        });
+        setProcessedFiles(previous => Array.from(new Set([...previous, ...data.processedFiles])));
+        localStorage.setItem('finance_legacy_migration_version', data.schemaVersion);
+        setAutoImportStatus(`${data.transactions.length} transacoes migradas do banco antigo`);
+      } catch {
+        setAutoImportStatus('Migracao do banco antigo indisponivel');
+      } finally {
+        if (!cancelled) setMigrationReady(true);
+      }
+    };
+    importLegacy();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!migrationReady) return;
     let cancelled = false;
     const autoImport = async () => {
       try {
@@ -107,7 +189,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
     autoImport();
     return () => { cancelled = true; };
-  }, [categories, processedFiles]);
+  }, [categories, processedFiles, migrationReady]);
 
   const addIncome = (income: MonthlyIncome) => {
     setMonthlyIncomes(previous => [...previous.filter(item => item.month !== income.month), income]);
@@ -125,7 +207,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const exportData = () => {
-    const payload = { transactions, debts, monthlyIncomes, categories, exportedAt: new Date().toISOString() };
+    const payload = { transactions, debts, monthlyIncomes, categories, aliases, exportedAt: new Date().toISOString() };
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
@@ -140,7 +222,9 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     setDebts([]);
     setMonthlyIncomes([]);
     setCategories(DEFAULT_CATEGORIES);
+    setAliases([]);
     setProcessedFiles([]);
+    localStorage.removeItem('finance_legacy_migration_version');
   };
 
   return (
@@ -149,12 +233,14 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
       debts,
       monthlyIncomes,
       categories,
+      aliases,
       processedFiles,
       addTransactions,
       setTransactions,
       setDebts,
       setMonthlyIncomes,
       setCategories,
+      setAliases,
       addIncome,
       addDebt,
       linkTransactionToDebt,

@@ -5,6 +5,11 @@ export interface Category {
   keywords: string[];
 }
 
+export interface Alias {
+  original: string;
+  alias: string;
+}
+
 export interface Transaction {
   id: string;
   date: string;
@@ -70,4 +75,14 @@ export interface MonthlySummary {
   expense: number;
   balance: number;
   projected?: boolean;
+}
+
+export interface LegacyMigrationData {
+  schemaVersion: string;
+  categories: Category[];
+  aliases: Alias[];
+  transactions: Transaction[];
+  monthlyIncomes: MonthlyIncome[];
+  debts: Debt[];
+  processedFiles: string[];
 }

@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useFinance } from '../store/FinanceContext';
-import { filterByMonth } from '../utils/analytics';
+import { applyAlias, filterByMonth } from '../utils/analytics';
 import { formatBRL, formatDate, normalizeMerchant } from '../utils/formatters';
 import { DataTable, type Column } from './ui/DataTable';
 import type { Transaction } from '../types';
 
 export function TransactionLedger({ selectedMonth }: { selectedMonth: string }) {
-  const { transactions, categories, debts, setTransactions, linkTransactionToDebt } = useFinance();
+  const { transactions, categories, aliases, debts, setTransactions, linkTransactionToDebt } = useFinance();
   const rows = useMemo(() => filterByMonth(transactions, selectedMonth), [transactions, selectedMonth]);
 
   const categoryName = (id: string) => categories.find(item => item.id === id)?.name || 'Outros';
@@ -18,7 +18,7 @@ export function TransactionLedger({ selectedMonth }: { selectedMonth: string }) 
   const columns: Column<Transaction>[] = [
     { key: 'date', header: 'Data', accessor: row => formatDate(row.date), align: 'center', sortValue: row => row.date },
     { key: 'description', header: 'Descricao', accessor: row => row.description },
-    { key: 'merchant', header: 'Local', accessor: row => row.normalizedMerchant || normalizeMerchant(row.description), filterable: true },
+    { key: 'merchant', header: 'Local', accessor: row => aliases.length ? applyAlias(row.description, aliases) : row.normalizedMerchant || normalizeMerchant(row.description), filterable: true },
     { key: 'amount', header: 'Valor', accessor: row => row.amount, render: row => formatBRL(row.amount), align: 'right', sortValue: row => row.amount },
     { key: 'category', header: 'Categoria', accessor: row => categoryName(row.categoryId), align: 'center', render: row => (
       <select value={row.categoryId} onChange={event => updateCategory(row.id, event.target.value)}>

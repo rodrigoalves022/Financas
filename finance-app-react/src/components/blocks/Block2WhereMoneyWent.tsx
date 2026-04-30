@@ -5,10 +5,10 @@ import { formatBRL, formatMonth } from '../../utils/formatters';
 import { DataTable } from '../ui/DataTable';
 
 export function Block2WhereMoneyWent({ selectedMonth }: { selectedMonth: string }) {
-  const { transactions, categories } = useFinance();
+  const { transactions, categories, aliases } = useFinance();
   const scoped = filterByMonth(transactions, selectedMonth);
   const categoryTotals = getCategoryTotals(scoped, categories);
-  const merchants = getMerchantTotals(scoped).slice(0, 15);
+  const merchants = getMerchantTotals(scoped, aliases).slice(0, 15);
   const top3 = categoryTotals.slice(0, 3);
   const months = Array.from(new Set(transactions.map(item => item.date.substring(0, 7)))).sort();
   const evolution = months.map(month => {

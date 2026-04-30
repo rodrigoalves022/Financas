@@ -1,4 +1,4 @@
-import type { Category, CategoryTotal, Debt, MerchantTotal, MonthlyIncome, MonthlySummary, Transaction } from '../types';
+import type { Alias, Category, CategoryTotal, Debt, MerchantTotal, MonthlyIncome, MonthlySummary, Transaction } from '../types';
 import { WEEKDAY_LABELS } from './constants';
 import { normalizeMerchant } from './formatters';
 
@@ -46,10 +46,15 @@ export const getCategoryTotals = (transactions: Transaction[], categories: Categ
   }).filter(item => item.total > 0).sort((a, b) => b.total - a.total);
 };
 
-export const getMerchantTotals = (transactions: Transaction[]): MerchantTotal[] => {
+export const applyAlias = (description: string, aliases: Alias[]) => {
+  const found = aliases.find(item => normalizeMerchant(item.original) === normalizeMerchant(description));
+  return found?.alias || normalizeMerchant(description);
+};
+
+export const getMerchantTotals = (transactions: Transaction[], aliases: Alias[] = []): MerchantTotal[] => {
   const groups = new Map<string, MerchantTotal>();
   expenseTransactions(transactions).forEach(item => {
-    const merchant = item.normalizedMerchant || normalizeMerchant(item.description);
+    const merchant = aliases.length ? applyAlias(item.description, aliases) : item.normalizedMerchant || normalizeMerchant(item.description);
     const current = groups.get(merchant) || { merchant, total: 0, count: 0, averageTicket: 0, variants: [] };
     current.total += item.amount;
     current.count += 1;
