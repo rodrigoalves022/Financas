@@ -3,21 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finanças Pessoais — Dashboard</title>
-    <meta name="description" content="Dashboard local de finanças pessoais com leitura de faturas Inter">
+    <title>Painel Financeiro</title>
+    <meta name="description" content="Painel local para faturas, receitas, categorias e analise financeira pessoal">
+    <meta name="theme-color" content="#141829">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="manifest" href="/static/site.webmanifest">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 <aside class="sidebar">
     <div class="sidebar-header">
-        <div class="logo">💰</div>
-        <h1>Finanças</h1>
+        <div class="logo app-logo" aria-hidden="true"></div>
+        <h1>Painel</h1>
     </div>
     <nav>
-        <a class="nav-item active" data-tab="dashboard"><span class="nav-icon">📊</span><span>Dashboard</span></a>
-        <a class="nav-item" data-tab="transacoes"><span class="nav-icon">💳</span><span>Transações</span></a>
-        <a class="nav-item" data-tab="revisao"><span class="nav-icon">🔎</span><span>Revisão</span></a>
+        <a class="nav-item active" data-tab="dashboard"><span class="nav-icon">📊</span><span>Visao Geral</span></a>
+        <a class="nav-item" data-tab="transacoes"><span class="nav-icon">💳</span><span>Movimentacoes</span></a>
+        <a class="nav-item" data-tab="revisao"><span class="nav-icon">🔎</span><span>Triagem</span></a>
         <a class="nav-item" data-tab="importar"><span class="nav-icon">📄</span><span>Faturas</span></a>
         <a class="nav-item" data-tab="regras"><span class="nav-icon">🏷️</span><span>Categorias</span></a>
         <a class="nav-item" data-tab="receitas"><span class="nav-icon">💵</span><span>Receitas</span></a>
@@ -35,7 +38,7 @@
     <!-- ═══ DASHBOARD ═══ -->
     <section id="tab-dashboard" class="tab-content active">
         <div class="section-header">
-            <h2>Dashboard</h2>
+            <h2>Painel Financeiro</h2>
             <div style="display:flex;gap:0.5rem;align-items:center">
                 <button id="btn-ajustar-saldo" class="btn btn-ghost btn-sm" style="display:none" onclick="ajustarSaldo()" title="Gerar receita fake para zerar o salto negativo deste mês">✅ Ajustar Saldo</button>
                 <select id="dash-mes" class="filter-select" onchange="loadDashboard()">
@@ -51,10 +54,17 @@
             <button class="toggle-btn" id="btn-dash-anual" onclick="showDashView('anual')">📊 Anual</button>
         </div>
         <div id="dash-mensal">
+        <div class="dash-section-tabs">
+            <button class="section-tab active" data-dash-section="resumo" onclick="showDashSection('resumo')">Resumo</button>
+            <button class="section-tab" data-dash-section="analises" onclick="showDashSection('analises')">Analises</button>
+            <button class="section-tab" data-dash-section="tendencias" onclick="showDashSection('tendencias')">Tendencias</button>
+            <button class="section-tab" data-dash-section="rankings" onclick="showDashSection('rankings')">Rankings</button>
+        </div>
+        <div class="dash-section active" id="dash-section-resumo">
         <div class="summary-cards">
             <div class="card summary-card despesas"><div class="card-icon">💸</div><div class="card-info"><span class="card-label">Total despesas</span><span class="card-value" id="v-despesas">R$ 0,00</span></div></div>
             <div class="card summary-card receitas"><div class="card-icon">💰</div><div class="card-info"><span class="card-label">Total receitas</span><span class="card-value" id="v-receitas">R$ 0,00</span></div></div>
-            <div class="card summary-card saldo"><div class="card-icon">⚖️</div><div class="card-info"><span class="card-label">Saldo do ciclo</span><span class="card-value" id="v-saldo">R$ 0,00</span></div></div>
+            <div class="card summary-card saldo"><div class="card-icon">⚖️</div><div class="card-info"><span class="card-label">Saldo contabil</span><span class="card-value" id="v-saldo">R$ 0,00</span></div></div>
             <div class="card summary-card dividas"><div class="card-icon">🤝</div><div class="card-info"><span class="card-label">Te devem (mês)</span><span class="card-value" id="v-dividas">R$ 0,00</span></div></div>
             <div class="card summary-card"><div class="card-icon">🔮</div><div class="card-info"><span class="card-label">Parcelas futuras</span><span class="card-value" id="v-projetado" style="color:#22d3ee">R$ 0,00</span></div></div>
             <div class="card summary-card"><div class="card-icon">🔺</div><div class="card-info"><span class="card-label">Maior gasto</span><span class="card-value" id="v-maior-gasto">R$ 0,00</span></div></div>
@@ -89,30 +99,38 @@
         <div id="alert-sem-cat" class="alert alert-warning" style="display:none">
             <span id="sem-cat-msg"></span>
         </div>
+        </div>
 
+        <div class="dash-section" id="dash-section-analises">
         <div class="charts-row">
-            <div class="card chart-card"><h3>🥧 Gastos por categoria</h3><div id="chart-cat" style="height:320px"></div></div>
-            <div class="card chart-card"><h3>📈 Evolução mensal</h3><div id="chart-evo" style="height:320px"></div></div>
+            <div class="card chart-card"><h3>🥧 Categorias</h3><div id="chart-cat" style="height:320px"></div></div>
+            <div class="card chart-card"><h3>📈 Receita, despesa e media</h3><div id="chart-evo" style="height:320px"></div></div>
         </div>
         <div class="charts-row">
-            <div class="card chart-card"><h3>💳 Distribuição por cartão</h3><div id="chart-cartao" style="height:320px"></div></div>
+            <div class="card chart-card"><h3>💳 Cartoes</h3><div id="chart-cartao" style="height:320px"></div></div>
             <div class="card chart-card">
                 <h3>📆 Gastos por semana</h3>
                 <div id="chart-semana" style="height:320px"></div>
             </div>
         </div>
+        </div>
+
+        <div class="dash-section" id="dash-section-tendencias">
         <div class="charts-row">
-            <div class="card chart-card"><h3>📆 Padrão por dia do mês</h3><div id="chart-dia" style="height:320px"></div></div>
-            <div class="card chart-card"><h3>🔮 Parcelas futuras por mês</h3><div id="chart-parcelas" style="height:320px"></div></div>
+            <div class="card chart-card"><h3>📆 Padrao diario</h3><div id="chart-dia" style="height:320px"></div></div>
+            <div class="card chart-card"><h3>🔮 Parcelas futuras</h3><div id="chart-parcelas" style="height:320px"></div></div>
             <div class="card chart-card">
-                <h3>🔄 Recorrentes detectadas</h3>
+                <h3>🔄 Gastos recorrentes</h3>
                 <div id="lista-recorrentes"></div>
             </div>
         </div>
+        </div>
 
+        <div class="dash-section" id="dash-section-rankings">
         <div class="dashboard-grid">
-            <div class="card"><h3>🏆 Top 10 maiores gastos</h3><div id="top-gastos"></div></div>
+            <div class="card"><h3>🏆 Maiores gastos</h3><div id="top-gastos"></div></div>
             <div class="card"><h3>🏪 Top estabelecimentos</h3><div id="top-estabelecimentos"></div></div>
+        </div>
         </div>
         </div> <!-- /dash-mensal -->
 

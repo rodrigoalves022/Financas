@@ -518,6 +518,7 @@ async function loadDashboard() {
         renderParcelChart(data.parcelas_futuras_mes);
         renderRecurringList('lista-recorrentes', data.recorrentes);
         renderTopTables(data.top_gastos, data.top_estabelecimentos);
+        requestAnimationFrame(resizeVisibleCharts);
     } catch (error) {
         toast(error.message, 'error');
     }
@@ -531,6 +532,22 @@ function showDashView(view) {
     document.getElementById('btn-dash-mensal').classList.toggle('active', view === 'mensal');
     document.getElementById('btn-dash-anual').classList.toggle('active', view === 'anual');
     if (view === 'anual') loadDashboardAnual();
+    requestAnimationFrame(resizeVisibleCharts);
+}
+
+function showDashSection(section) {
+    document.querySelectorAll('.dash-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.section-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById(`dash-section-${section}`)?.classList.add('active');
+    document.querySelector(`[data-dash-section="${section}"]`)?.classList.add('active');
+    requestAnimationFrame(resizeVisibleCharts);
+}
+
+function resizeVisibleCharts() {
+    if (!window.Plotly) return;
+    document.querySelectorAll('.dash-section.active [id^="chart-"], #dash-anual:not([style*="display: none"]) [id^="chart-"]').forEach(el => {
+        if (el.offsetParent) Plotly.Plots.resize(el);
+    });
 }
 
 async function loadDashboardAnual() {
