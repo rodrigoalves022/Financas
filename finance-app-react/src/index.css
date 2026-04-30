@@ -5,8 +5,8 @@
 }
 
 :root {
-  color: #0f172a;
-  background: #f4f7fb;
+  color: #e5edf7;
+  background: #090d18;
   font-family: var(--font-sans);
 }
 
@@ -18,7 +18,9 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f4f7fb;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 32rem),
+    #090d18;
 }
 
 button, input, select {
@@ -42,8 +44,8 @@ button {
   justify-content: space-between;
   gap: 24px;
   padding: 18px 28px;
-  background: rgba(244, 247, 251, 0.9);
-  border-bottom: 1px solid #dbe3ef;
+  background: rgba(9, 13, 24, 0.88);
+  border-bottom: 1px solid #1f2a3d;
   backdrop-filter: blur(16px);
 }
 
@@ -55,12 +57,12 @@ button {
 
 .topbar p, .muted {
   margin: 4px 0 0;
-  color: #64748b;
+  color: #8ea2bd;
   font-size: 13px;
 }
 
 .eyebrow, .dashboard-section > h2 {
-  color: #64748b;
+  color: #8ea2bd;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -75,11 +77,11 @@ button {
 }
 
 select, input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #26344d;
   border-radius: 8px;
   padding: 9px 10px;
-  color: #0f172a;
-  background: #ffffff;
+  color: #e5edf7;
+  background: #0d1322;
 }
 
 .primary-button, .secondary-button, .icon-button {
@@ -101,9 +103,9 @@ select, input {
 }
 
 .secondary-button, .icon-button {
-  color: #0f172a;
-  background: #ffffff;
-  border-color: #dbe3ef;
+  color: #e5edf7;
+  background: #111827;
+  border-color: #26344d;
 }
 
 .icon-button {
@@ -128,7 +130,7 @@ select, input {
 .dashboard-section > h2 {
   padding-bottom: 10px;
   margin: 0 0 16px;
-  border-bottom: 1px solid #dbe3ef;
+  border-bottom: 1px solid #1f2a3d;
 }
 
 .section-grid {
@@ -148,10 +150,10 @@ select, input {
 }
 
 .kpi-card, .chart-card, .table-card, .empty-state {
-  background: #ffffff;
-  border: 1px solid #dbe3ef;
+  background: #111827;
+  border: 1px solid #26344d;
   border-radius: 8px;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
 }
 
 .kpi-card {
@@ -161,7 +163,7 @@ select, input {
 
 .kpi-card span {
   display: block;
-  color: #64748b;
+  color: #8ea2bd;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -178,7 +180,7 @@ select, input {
 .kpi-card small {
   display: block;
   margin-top: 8px;
-  color: #64748b;
+  color: #8ea2bd;
 }
 
 .kpi-card.success, .kpi-card .good { color: #16a34a; }
@@ -209,7 +211,7 @@ select, input {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #475569;
+  color: #9fb3ce;
   font-size: 13px;
   font-weight: 700;
 }
@@ -225,7 +227,7 @@ select, input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #64748b;
+  color: #8ea2bd;
   font-size: 13px;
 }
 
@@ -234,10 +236,10 @@ select, input {
   align-items: center;
   gap: 8px;
   width: min(460px, 100%);
-  border: 1px solid #cbd5e1;
+  border: 1px solid #26344d;
   border-radius: 8px;
   padding: 0 10px;
-  background: #ffffff;
+  background: #0d1322;
 }
 
 .table-search input {
@@ -250,7 +252,7 @@ select, input {
 .table-scroll {
   width: 100%;
   overflow: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #26344d;
   border-radius: 8px;
 }
 
@@ -262,8 +264,8 @@ select, input {
 }
 
 .data-table th {
-  color: #64748b;
-  background: #f8fafc;
+  color: #8ea2bd;
+  background: #0d1322;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -272,7 +274,7 @@ select, input {
 
 .data-table th, .data-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #1f2a3d;
   vertical-align: middle;
 }
 
@@ -287,7 +289,13 @@ select, input {
 }
 
 .data-table tr:hover td {
-  background: #f8fafc;
+  background: #151f32;
+}
+
+.data-table select {
+  max-width: 190px;
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 .align-left { text-align: left; }
@@ -306,15 +314,16 @@ select, input {
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  color: #64748b;
+  color: #8ea2bd;
   font-size: 13px;
 }
 
 .table-footer button {
-  border: 1px solid #dbe3ef;
+  color: #e5edf7;
+  border: 1px solid #26344d;
   border-radius: 8px;
   padding: 7px 10px;
-  background: #ffffff;
+  background: #0d1322;
 }
 
 .table-footer button:disabled {
@@ -333,13 +342,13 @@ select, input {
   font-weight: 800;
 }
 
-.badge.success { color: #166534; background: #dcfce7; }
-.badge.warning { color: #92400e; background: #fef3c7; }
-.badge.danger { color: #991b1b; background: #fee2e2; }
+.badge.success { color: #bbf7d0; background: rgba(22, 163, 74, 0.18); }
+.badge.warning { color: #fde68a; background: rgba(217, 119, 6, 0.2); }
+.badge.danger { color: #fecaca; background: rgba(220, 38, 38, 0.2); }
 
 .empty-state {
   padding: 28px;
-  color: #64748b;
+  color: #8ea2bd;
   text-align: center;
 }
 
@@ -354,10 +363,10 @@ select, input {
   justify-content: space-between;
   gap: 16px;
   padding: 22px;
-  border: 1px dashed #93c5fd;
+  border: 1px dashed #2563eb;
   border-radius: 8px;
-  color: #1e40af;
-  background: #eff6ff;
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.14);
 }
 
 .modal-backdrop {
@@ -375,8 +384,8 @@ select, input {
   width: min(680px, 100%);
   max-height: 90vh;
   overflow: auto;
-  background: #ffffff;
-  border: 1px solid #dbe3ef;
+  background: #111827;
+  border: 1px solid #26344d;
   border-radius: 8px;
   box-shadow: 0 24px 80px rgba(15, 23, 42, 0.3);
 }
@@ -391,11 +400,11 @@ select, input {
   justify-content: space-between;
   gap: 16px;
   padding: 18px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #1f2a3d;
 }
 
 .modal-footer {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #1f2a3d;
   border-bottom: 0;
   justify-content: flex-end;
 }
@@ -408,7 +417,7 @@ select, input {
 
 .modal-header p {
   margin: 4px 0 0;
-  color: #64748b;
+  color: #8ea2bd;
   font-size: 13px;
 }
 
@@ -420,10 +429,10 @@ select, input {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  border: 2px dashed #93c5fd;
+  border: 2px dashed #2563eb;
   border-radius: 8px;
   color: #2563eb;
-  background: #eff6ff;
+  background: rgba(37, 99, 235, 0.14);
   text-align: center;
 }
 
@@ -448,10 +457,11 @@ select, input {
 }
 
 .segmented button {
-  border: 1px solid #dbe3ef;
+  color: #e5edf7;
+  border: 1px solid #26344d;
   border-radius: 8px;
   padding: 10px;
-  background: #ffffff;
+  background: #0d1322;
   font-weight: 800;
 }
 
@@ -472,7 +482,7 @@ select, input {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #475569;
+  color: #9fb3ce;
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
@@ -493,11 +503,26 @@ select, input {
 
 .insight {
   padding: 12px 14px;
-  color: #1e40af;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(37, 99, 235, 0.35);
   border-radius: 8px;
   font-weight: 700;
+}
+
+.recharts-text {
+  fill: #9fb3ce;
+}
+
+.recharts-cartesian-grid line {
+  stroke: #26344d;
+}
+
+.recharts-default-tooltip {
+  color: #e5edf7 !important;
+  background: #0d1322 !important;
+  border: 1px solid #26344d !important;
+  border-radius: 8px !important;
 }
 
 @media (max-width: 900px) {
