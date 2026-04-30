@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finanças Pessoais — Dashboard</title>
+    <meta name="description" content="Dashboard local de finanças pessoais com leitura de faturas Inter">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">💰</div>
+        <h1>Finanças</h1>
+    </div>
+    <nav>
+        <a class="nav-item active" data-tab="dashboard"><span class="nav-icon">📊</span><span>Dashboard</span></a>
+        <a class="nav-item" data-tab="transacoes"><span class="nav-icon">💳</span><span>Transações</span></a>
+        <a class="nav-item" data-tab="revisao"><span class="nav-icon">🔎</span><span>Revisão</span></a>
+        <a class="nav-item" data-tab="importar"><span class="nav-icon">📄</span><span>Faturas</span></a>
+        <a class="nav-item" data-tab="regras"><span class="nav-icon">🏷️</span><span>Categorias</span></a>
+        <a class="nav-item" data-tab="receitas"><span class="nav-icon">💵</span><span>Receitas</span></a>
+        <a class="nav-item" data-tab="dividas"><span class="nav-icon">🤝</span><span>Pessoas / Dívidas</span></a>
+    </nav>
+    <div class="sidebar-footer">
+        <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" id="theme-btn" title="Alternar tema">🌙</button>
+        <a class="btn btn-ghost btn-sm" href="/api/backup" title="Baixar backup do banco">💾</a>
+    </div>
+</aside>
+
+<div class="toast-container" id="toast-container"></div>
+
+<main class="main-content">
+    <!-- ═══ DASHBOARD ═══ -->
+    <section id="tab-dashboard" class="tab-content active">
+        <div class="section-header">
+            <h2>Dashboard</h2>
+            <div style="display:flex;gap:0.5rem;align-items:center">
+                <button id="btn-ajustar-saldo" class="btn btn-ghost btn-sm" style="display:none" onclick="ajustarSaldo()" title="Gerar receita fake para zerar o salto negativo deste mês">✅ Ajustar Saldo</button>
+                <select id="dash-mes" class="filter-select" onchange="loadDashboard()">
+                    <option value="">Todos os meses</option>
+                </select>
+                <span style="color:var(--text-dim);font-size:0.85rem">ou</span>
+                <input type="month" id="dash-mes-inicio" class="form-input short-input" onchange="loadDashboard()" title="Mês inicial">
+                <input type="month" id="dash-mes-fim" class="form-input short-input" onchange="loadDashboard()" title="Mês final">
+            </div>
+        </div>
+        <div class="dash-toggle">
+            <button class="toggle-btn active" id="btn-dash-mensal" onclick="showDashView('mensal')">📅 Mensal</button>
+            <button class="toggle-btn" id="btn-dash-anual" onclick="showDashView('anual')">📊 Anual</button>
+        </div>
+        <div id="dash-mensal">
+        <div class="summary-cards">
+            <div class="card summary-card despesas"><div class="card-icon">💸</div><div class="card-info"><span class="card-label">Total despesas</span><span class="card-value" id="v-despesas">R$ 0,00</span></div></div>
+            <div class="card summary-card receitas"><div class="card-icon">💰</div><div class="card-info"><span class="card-label">Total receitas</span><span class="card-value" id="v-receitas">R$ 0,00</span></div></div>
+            <div class="card summary-card saldo"><div class="card-icon">⚖️</div><div class="card-info"><span class="card-label">Saldo do ciclo</span><span class="card-value" id="v-saldo">R$ 0,00</span></div></div>
+            <div class="card summary-card dividas"><div class="card-icon">🤝</div><div class="card-info"><span class="card-label">Te devem (mês)</span><span class="card-value" id="v-dividas">R$ 0,00</span></div></div>
+            <div class="card summary-card"><div class="card-icon">🔮</div><div class="card-info"><span class="card-label">Parcelas futuras</span><span class="card-value" id="v-projetado" style="color:#22d3ee">R$ 0,00</span></div></div>
+            <div class="card summary-card"><div class="card-icon">🔺</div><div class="card-info"><span class="card-label">Maior gasto</span><span class="card-value" id="v-maior-gasto">R$ 0,00</span></div></div>
+            <div class="card summary-card" id="card-cobertura" style="display:none"><div class="card-icon">📋</div><div class="card-info"><span class="card-label">Cobertura da fatura</span><span class="card-value" id="v-cobertura">R$ 0,00</span><span id="v-cobertura-label" style="font-size:0.7rem;color:var(--text-muted);display:block"></span></div></div>
+        </div>
+        <div id="alert-gastos" class="alert alert-warning" style="display:none;margin-top:1rem">
+            <div id="alert-gastos-msg"></div>
+        </div>
+        <div class="alert alert-info" style="margin-top:1rem">
+            O total do dashboard usa o <strong>mês da fatura</strong>. A tabela abaixo também mostra a <strong>data original da compra</strong> separada do mês de referência.
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="card insight-card">
+                <h3>🤝 Quem me deve (Geral)</h3>
+                <div id="dash-devedores" class="compare-grid" style="grid-template-columns:1fr;gap:0.5rem"></div>
+                <div style="text-align:right;margin-top:0.5rem"><a href="#" onclick="showTab('dividas');return false" style="color:var(--primary);font-size:0.8rem;text-decoration:none">Ver detalhes →</a></div>
+            </div>
+            <div class="card insight-card">
+                <h3>📅 Comparação com o mês anterior</h3>
+                <div id="comparativo-mes" class="compare-grid"></div>
+            </div>
+            <div class="card insight-card">
+                <h3>🔎 Revisão rápida</h3>
+                <div id="review-counters" class="mini-stat-grid"></div>
+            </div>
+        </div>
+
+        <!-- Orçamentos inline no dashboard -->
+        <div id="dash-orcamentos" style="margin-bottom:1.5rem"></div>
+
+        <div id="alert-sem-cat" class="alert alert-warning" style="display:none">
+            <span id="sem-cat-msg"></span>
+        </div>
+
+        <div class="charts-row">
+            <div class="card chart-card"><h3>🥧 Gastos por categoria</h3><div id="chart-cat" style="height:320px"></div></div>
+            <div class="card chart-card"><h3>📈 Evolução mensal</h3><div id="chart-evo" style="height:320px"></div></div>
+        </div>
+        <div class="charts-row">
+            <div class="card chart-card"><h3>💳 Distribuição por cartão</h3><div id="chart-cartao" style="height:320px"></div></div>
+            <div class="card chart-card">
+                <h3>📆 Gastos por semana</h3>
+                <div id="chart-semana" style="height:320px"></div>
+            </div>
+        </div>
+        <div class="charts-row">
+            <div class="card chart-card"><h3>📆 Padrão por dia do mês</h3><div id="chart-dia" style="height:320px"></div></div>
+            <div class="card chart-card"><h3>🔮 Parcelas futuras por mês</h3><div id="chart-parcelas" style="height:320px"></div></div>
+            <div class="card chart-card">
+                <h3>🔄 Recorrentes detectadas</h3>
+                <div id="lista-recorrentes"></div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="card"><h3>🏆 Top 10 maiores gastos</h3><div id="top-gastos"></div></div>
+            <div class="card"><h3>🏪 Top estabelecimentos</h3><div id="top-estabelecimentos"></div></div>
+        </div>
+        </div> <!-- /dash-mensal -->
+
+        <!-- ═══ DASHBOARD ANUAL ═══ -->
+        <div id="dash-anual" style="display:none">
+            <div class="section-header" style="margin-top:0">
+                <h2>Visão Anual</h2>
+                <select id="dash-ano" class="filter-select" onchange="loadDashboardAnual()"></select>
+            </div>
+            <div class="summary-cards">
+                <div class="card summary-card despesas"><div class="card-icon">💸</div><div class="card-info"><span class="card-label">Total gasto no ano</span><span class="card-value" id="va-despesas">R$ 0</span></div></div>
+                <div class="card summary-card receitas"><div class="card-icon">💰</div><div class="card-info"><span class="card-label">Receita total</span><span class="card-value" id="va-receitas">R$ 0</span></div></div>
+                <div class="card summary-card saldo"><div class="card-icon">⚖️</div><div class="card-info"><span class="card-label">Saldo do ano</span><span class="card-value" id="va-saldo">R$ 0</span></div></div>
+                <div class="card summary-card"><div class="card-icon">📊</div><div class="card-info"><span class="card-label">Média mensal</span><span class="card-value" id="va-media">R$ 0</span></div></div>
+                <div class="card summary-card"><div class="card-icon">🔮</div><div class="card-info"><span class="card-label">Previsão ano completo</span><span class="card-value" id="va-previsao">R$ 0</span></div></div>
+            </div>
+            <div class="dashboard-grid" style="margin-bottom:1.5rem">
+                <div class="card insight-card"><h3>📈 Mês mais caro</h3><div id="va-maior-mes"></div></div>
+                <div class="card insight-card"><h3>📉 Mês mais barato</h3><div id="va-menor-mes"></div></div>
+            </div>
+            <div class="charts-row">
+                <div class="card chart-card"><h3>📈 Despesas vs Receitas por Mês</h3><div id="chart-anual-evo" style="height:350px"></div></div>
+                <div class="card chart-card"><h3>🥧 Categorias no Ano</h3><div id="chart-anual-cat" style="height:350px"></div></div>
+            </div>
+            <div class="dashboard-grid">
+                <div class="card"><h3>🏆 Top 10 gastos do ano</h3><div id="anual-top-gastos"></div></div>
+                <div class="card"><h3>📂 Ranking de categorias</h3><div id="anual-top-cats"></div></div>
+            </div>
+        </div> <!-- /dash-anual -->
+    </section>
+
+    <!-- ═══ TRANSAÇÕES ═══ -->
+    <section id="tab-transacoes" class="tab-content">
+        <div class="section-header">
+            <h2>Transações</h2>
+            <button class="btn btn-primary" onclick="exportarCsv()">📥 Exportar CSV</button>
+        </div>
+        <div class="filter-bar">
+            <select id="tx-mes" class="filter-select" onchange="loadTransacoes()"><option value="">Todos os meses</option></select>
+            <span style="color:var(--text-dim);font-size:0.85rem">ou intervalo:</span>
+            <input type="month" id="tx-mes-inicio" class="form-input short-input" onchange="loadTransacoes()" title="Mês inicial">
+            <input type="month" id="tx-mes-fim" class="form-input short-input" onchange="loadTransacoes()" title="Mês final">
+            <select id="tx-cat" class="filter-select" onchange="loadTransacoes()"><option value="">Todas categorias</option><option value="sem">Sem categoria</option></select>
+            <select id="tx-cartao" class="filter-select" onchange="loadTransacoes()"><option value="">Todos cartões</option></select>
+            <select id="tx-resp" class="filter-select" onchange="loadTransacoes()"><option value="">Todos responsáveis</option></select>
+            <input id="tx-busca" class="form-input" placeholder="Buscar descrição ou alias..." oninput="debouncedLoadTx()">
+            <input id="tx-min" type="number" step="0.01" class="form-input short-input" placeholder="Valor mín" oninput="debouncedLoadTx()">
+            <input id="tx-max" type="number" step="0.01" class="form-input short-input" placeholder="Valor máx" oninput="debouncedLoadTx()">
+            <label class="toggle-label"><input type="checkbox" id="tx-projetadas" onchange="loadTransacoes()" checked><span>Ver futuras</span></label>
+            <label class="toggle-label"><input type="checkbox" id="tx-parceladas" onchange="loadTransacoes()"><span>Só parceladas</span></label>
+            <label class="toggle-label"><input type="checkbox" id="tx-recorrentes" onchange="loadTransacoes()"><span>Só recorrentes</span></label>
+            <label class="toggle-label"><input type="checkbox" id="tx-ignoradas" onchange="loadTransacoes()"><span>Mostrar ignoradas</span></label>
+        </div>
+        <div class="card" style="overflow-x:auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="sel-all" onchange="toggleSelAll(this)"></th>
+                        <th>Data compra</th>
+                        <th>Mês fatura</th>
+                        <th>Descrição / Alias</th>
+                        <th>Valor</th>
+                        <th>Parcela</th>
+                        <th>Cartão</th>
+                        <th>Responsável</th>
+                        <th>Categoria</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tx-body"></tbody>
+            </table>
+        </div>
+        <!-- Batch actions bar -->
+        <div id="batch-bar" class="batch-bar" style="display:none">
+            <span id="batch-count">0 selecionadas</span>
+            <select id="batch-cat" class="form-select" style="max-width:220px"></select>
+            <button class="btn btn-primary btn-sm" onclick="aplicarBatchCat()">Aplicar categoria</button>
+            <button class="btn btn-ghost btn-sm" onclick="limparSelecao()">Cancelar</button>
+        </div>
+    </section>
+
+    <!-- ═══ REVISÃO ═══ -->
+    <section id="tab-revisao" class="tab-content">
+        <div class="section-header">
+            <h2>Revisão</h2>
+            <button class="btn btn-ghost" onclick="loadReview()">🔄 Atualizar</button>
+        </div>
+        <div id="review-summary" class="mini-stat-grid" style="margin-bottom:1.5rem"></div>
+        <div class="dashboard-grid">
+            <div class="card">
+                <h3>⚠️ Transações pendentes</h3>
+                <div id="review-pendentes"></div>
+            </div>
+            <div class="card">
+                <h3>🔄 Recorrências detectadas</h3>
+                <div id="review-recorrencias"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>💸 Maiores gastos para revisar</h3>
+            <div id="review-maiores"></div>
+        </div>
+    </section>
+
+    <!-- ═══ IMPORTAR ═══ -->
+    <section id="tab-importar" class="tab-content">
+        <div class="section-header"><h2>Faturas</h2></div>
+        <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">Arraste um PDF ou CSV aqui ou <strong>clique para selecionar</strong></div>
+        </div>
+        <input type="file" id="file-input" accept=".pdf,.csv" style="display:none" onchange="uploadFatura(this)">
+        <div class="action-row">
+            <button class="btn btn-primary" onclick="importarExistentes()">📁 Sincronizar pasta Faturas</button>
+            <a class="btn btn-ghost" href="/api/transacoes/exportar">📥 Baixar CSV geral</a>
+            <a class="btn btn-ghost" href="/api/backup">💾 Backup do banco</a>
+        </div>
+        <div id="import-result" style="margin-top:1rem"></div>
+        <div class="card" style="margin-top:1.5rem">
+            <h3>📋 Histórico de faturas importadas</h3>
+            <div id="faturas-historico"></div>
+        </div>
+    </section>
+
+    <!-- ═══ CATEGORIAS ═══ -->
+    <section id="tab-regras" class="tab-content">
+        <div class="section-header"><h2>Categorias e Apelidos</h2></div>
+
+        <!-- Orçamentos -->
+        <div class="card" style="margin-bottom:1.5rem">
+            <h3>🎯 Orçamentos por Categoria</h3>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">Defina um limite mensal por categoria e acompanhe seu progresso.</p>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Categoria</label><select id="orc-cat" class="form-select"></select></div>
+                <div class="form-group"><label class="form-label">Limite mensal (R$)</label><input id="orc-valor" type="number" step="0.01" class="form-input" placeholder="500,00"></div>
+                <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="salvarOrcamento()">Definir</button></div>
+            </div>
+            <div id="orcamentos-list" style="margin-top:1rem"></div>
+        </div>
+
+        <!-- Aliases -->
+        <div class="card" style="margin-bottom:1.5rem">
+            <h3>✏️ Apelidos de Descrição</h3>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">Dê um nome amigável para descrições da fatura.</p>
+            <div class="form-row">
+                <div class="form-group" style="flex:2"><label class="form-label">Descrição original</label><input id="alias-orig" class="form-input" placeholder="Ex: EMPORIO W4"></div>
+                <div class="form-group" style="flex:2"><label class="form-label">Apelido</label><input id="alias-novo" class="form-input" placeholder="Ex: Empório da 714"></div>
+                <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="salvarAlias()">Salvar</button></div>
+            </div>
+        </div>
+        <div class="card" style="margin-bottom:1.5rem">
+            <h3>Apelidos cadastrados</h3>
+            <table class="data-table"><thead><tr><th>Descrição original</th><th>Apelido</th><th></th></tr></thead><tbody id="aliases-body"></tbody></table>
+        </div>
+
+        <!-- Regras -->
+        <div class="card" style="margin-bottom:1.5rem">
+            <h3>🏷️ Nova Regra de Categorização</h3>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">Se a descrição contiver a palavra-chave, a categoria será aplicada automaticamente.</p>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Palavra-chave</label><input id="regra-kw" class="form-input" placeholder="Ex: CERVEJARIA"></div>
+                <div class="form-group"><label class="form-label">Categoria</label><select id="regra-cat" class="form-select"></select></div>
+                <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="criarRegra()">Adicionar</button></div>
+            </div>
+        </div>
+        <div class="card"><h3>Regras ativas</h3><table class="data-table"><thead><tr><th>Palavra-chave</th><th>Categoria</th><th></th></tr></thead><tbody id="regras-body"></tbody></table></div>
+    </section>
+
+    <!-- ═══ RECEITAS ═══ -->
+    <section id="tab-receitas" class="tab-content">
+        <div class="section-header"><h2>Receitas</h2>
+            <button class="btn btn-ghost btn-sm" onclick="projetarRecorrentes()" title="Projetar receitas recorrentes 3 meses">🔮 Projetar recorrentes</button>
+        </div>
+        <div class="card" style="margin-bottom:1.5rem">
+            <h3>➕ Nova Receita</h3>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Data</label><input id="rec-data" type="date" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Descrição</label><input id="rec-desc" class="form-input" placeholder="Ex: Salário"></div>
+                <div class="form-group"><label class="form-label">Valor (R$)</label><input id="rec-valor" type="number" step="0.01" class="form-input" placeholder="0,00"></div>
+                <div class="form-group"><label class="form-label">Tipo</label>
+                    <select id="rec-tipo" class="form-select">
+                        <option>Salário</option><option>Vale Alimentação</option><option>Vale Refeição</option><option>Freelance</option><option>Investimento</option><option>Reembolso</option><option>Ajuste</option><option>Outros</option>
+                    </select>
+                </div>
+                <div class="form-group" style="align-items:center;flex-direction:row;gap:0.5rem">
+                    <label class="toggle-label"><input type="checkbox" id="rec-recorrente"><span>Recorrente 🔄</span></label>
+                </div>
+                <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="criarReceita()">Adicionar</button></div>
+            </div>
+        </div>
+        <div class="card"><h3>Histórico</h3><table class="data-table"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Tipo</th><th>Recorrente</th><th></th></tr></thead><tbody id="rec-body"></tbody></table></div>
+    </section>
+
+    <!-- ═══ DÍVIDAS ═══ -->
+    <section id="tab-dividas" class="tab-content">
+        <div class="section-header"><h2>Pessoas / Dívidas</h2></div>
+        <!-- Quem me deve aparece primeiro -->
+        <div id="resumo-pessoas" style="margin-bottom:1.5rem"></div>
+        <div class="card" style="margin-bottom:1.5rem">
+            <h3>👥 Pessoas do Cartão</h3>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">Cadastre quem usa o cartão ou participa de rachões. Marque <strong>Titular</strong> para o dono do cartão.</p>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Nome</label><input id="pes-nome" class="form-input" placeholder="Ex: João"></div>
+                <div class="form-group" style="align-items:center;flex-direction:row;gap:0.5rem">
+                    <label class="toggle-label"><input type="checkbox" id="pes-titular"><span>Titular</span></label>
+                </div>
+                <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="criarPessoa()">Adicionar</button></div>
+            </div>
+            <div id="pessoas-list" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.75rem"></div>
+        </div>
+        <div class="card" style="margin-bottom:1.5rem">
+            <h3>÷ Divisões Recentes</h3>
+            <div id="divisoes-list"></div>
+        </div>
+        <div class="card" style="margin-bottom:1.5rem">
+            <h3>➕ Dívida Manual</h3>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Pessoa</label><input id="div-pessoa" class="form-input" placeholder="Nome"></div>
+                <div class="form-group"><label class="form-label">Descrição</label><input id="div-desc" class="form-input" placeholder="Motivo"></div>
+                <div class="form-group"><label class="form-label">Valor (R$)</label><input id="div-valor" type="number" step="0.01" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Data</label><input id="div-data" type="date" class="form-input"></div>
+                <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="criarDivida()">Adicionar</button></div>
+            </div>
+        </div>
+        <div id="div-summary" class="card" style="margin-bottom:1rem;display:none">
+            <span style="font-size:1.1rem">Total manual em aberto: <strong id="div-total" style="color:var(--warning)"></strong></span>
+        </div>
+        <div class="debt-grid" id="div-grid"></div>
+    </section>
+</main>
+
+<!-- Modal Dividir -->
+<div id="modal-dividir" class="modal-overlay" style="display:none">
+    <div class="modal-content">
+        <div class="modal-header"><h3>÷ Dividir Despesa</h3><button class="btn btn-ghost btn-sm" onclick="fecharModal()">✕</button></div>
+        <div id="modal-tx-info" style="margin-bottom:1rem;padding:0.75rem;background:var(--bg);border-radius:var(--radius-sm)"></div>
+        <div class="form-group" style="margin-bottom:1rem"><label class="form-label">Para que? (ex: Churrasco)</label><input id="modal-desc" class="form-input" placeholder="Descrição da divisão"></div>
+        <div class="form-group" style="margin-bottom:1rem"><label class="form-label">Quem pagou?</label><select id="modal-pagador" class="form-select"></select></div>
+        <div class="form-group" style="margin-bottom:1rem"><label class="form-label">Participantes</label><div id="modal-participantes" class="checkbox-grid"></div></div>
+        <div id="modal-preview" style="margin-bottom:1rem;color:var(--accent);font-weight:600"></div>
+        <button class="btn btn-primary" onclick="salvarDivisao()" style="width:100%">Confirmar Divisão</button>
+    </div>
+</div>
+
+<!-- Modal Nota -->
+<div id="modal-nota" class="modal-overlay" style="display:none">
+    <div class="modal-content" style="max-width:420px">
+        <div class="modal-header"><h3>📝 Nota</h3><button class="btn btn-ghost btn-sm" onclick="fecharModalNota()">✕</button></div>
+        <input type="hidden" id="nota-tx-id">
+        <div class="form-group" style="margin-bottom:1rem">
+            <label class="form-label">Observação</label>
+            <textarea id="nota-texto" class="form-input" rows="4" placeholder="Ex: Presente de aniversário da Maria" style="resize:vertical"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="salvarNota()" style="width:100%">Salvar Nota</button>
+    </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
