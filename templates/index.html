@@ -39,14 +39,15 @@
     <section id="tab-dashboard" class="tab-content active">
         <div class="section-header">
             <h2>Painel Financeiro</h2>
-            <div style="display:flex;gap:0.5rem;align-items:center">
+            <div class="period-toolbar">
                 <button id="btn-ajustar-saldo" class="btn btn-ghost btn-sm" style="display:none" onclick="ajustarSaldo()" title="Gerar receita fake para zerar o salto negativo deste mês">✅ Ajustar Saldo</button>
-                <select id="dash-mes" class="filter-select" onchange="loadDashboard()">
+                <button class="period-btn active" id="dash-period-all" onclick="setDashboardAll()">Todo periodo</button>
+                <select id="dash-mes" class="filter-select" onchange="setDashboardMonth()">
                     <option value="">Todos os meses</option>
                 </select>
                 <span style="color:var(--text-dim);font-size:0.85rem">ou</span>
-                <input type="month" id="dash-mes-inicio" class="form-input short-input" onchange="loadDashboard()" title="Mês inicial">
-                <input type="month" id="dash-mes-fim" class="form-input short-input" onchange="loadDashboard()" title="Mês final">
+                <label class="month-field"><span>De</span><input type="month" id="dash-mes-inicio" onchange="setDashboardRange()" title="Mês inicial"></label>
+                <label class="month-field"><span>Ate</span><input type="month" id="dash-mes-fim" onchange="setDashboardRange()" title="Mês final"></label>
             </div>
         </div>
         <div class="dash-toggle">
@@ -56,8 +57,8 @@
         <div id="dash-mensal">
         <div class="dash-section-tabs">
             <button class="section-tab active" data-dash-section="resumo" onclick="showDashSection('resumo')">Resumo</button>
-            <button class="section-tab" data-dash-section="analises" onclick="showDashSection('analises')">Analises</button>
-            <button class="section-tab" data-dash-section="tendencias" onclick="showDashSection('tendencias')">Tendencias</button>
+            <button class="section-tab" data-dash-section="analises" onclick="showDashSection('analises')">Graficos</button>
+            <button class="section-tab" data-dash-section="planejamento" onclick="showDashSection('planejamento')">Planejamento</button>
             <button class="section-tab" data-dash-section="rankings" onclick="showDashSection('rankings')">Rankings</button>
         </div>
         <div class="dash-section active" id="dash-section-resumo">
@@ -88,6 +89,10 @@
                 <div id="comparativo-mes" class="compare-grid"></div>
             </div>
             <div class="card insight-card">
+                <h3>📌 Leitura rapida</h3>
+                <div id="dash-insights"></div>
+            </div>
+            <div class="card insight-card">
                 <h3>🔎 Revisão rápida</h3>
                 <div id="review-counters" class="mini-stat-grid"></div>
             </div>
@@ -115,21 +120,18 @@
         </div>
         </div>
 
-        <div class="dash-section" id="dash-section-tendencias">
+        <div class="dash-section" id="dash-section-planejamento">
         <div class="charts-row">
             <div class="card chart-card"><h3>📆 Padrao diario</h3><div id="chart-dia" style="height:320px"></div></div>
             <div class="card chart-card"><h3>🔮 Parcelas futuras</h3><div id="chart-parcelas" style="height:320px"></div></div>
-            <div class="card chart-card">
-                <h3>🔄 Gastos recorrentes</h3>
-                <div id="lista-recorrentes"></div>
-            </div>
         </div>
         </div>
 
         <div class="dash-section" id="dash-section-rankings">
         <div class="dashboard-grid">
             <div class="card"><h3>🏆 Maiores gastos</h3><div id="top-gastos"></div></div>
-            <div class="card"><h3>🏪 Top estabelecimentos</h3><div id="top-estabelecimentos"></div></div>
+            <div class="card"><h3>🏪 Estabelecimentos agrupados</h3><div id="top-estabelecimentos"></div></div>
+            <div class="card"><h3>📂 Categorias do periodo</h3><div id="top-categorias-mes"></div></div>
         </div>
         </div>
         </div> <!-- /dash-mensal -->
@@ -140,6 +142,13 @@
                 <h2>Visão Anual</h2>
                 <select id="dash-ano" class="filter-select" onchange="loadDashboardAnual()"></select>
             </div>
+            <div class="dash-section-tabs">
+                <button class="section-tab active" data-annual-section="resumo" onclick="showAnnualSection('resumo')">Resumo</button>
+                <button class="section-tab" data-annual-section="evolucao" onclick="showAnnualSection('evolucao')">Evolucao</button>
+                <button class="section-tab" data-annual-section="rankings" onclick="showAnnualSection('rankings')">Rankings</button>
+                <button class="section-tab" data-annual-section="recorrentes" onclick="showAnnualSection('recorrentes')">Recorrentes</button>
+            </div>
+            <div class="annual-section active" id="annual-section-resumo">
             <div class="summary-cards">
                 <div class="card summary-card despesas"><div class="card-icon">💸</div><div class="card-info"><span class="card-label">Total gasto no ano</span><span class="card-value" id="va-despesas">R$ 0</span></div></div>
                 <div class="card summary-card receitas"><div class="card-icon">💰</div><div class="card-info"><span class="card-label">Receita total</span><span class="card-value" id="va-receitas">R$ 0</span></div></div>
@@ -151,13 +160,22 @@
                 <div class="card insight-card"><h3>📈 Mês mais caro</h3><div id="va-maior-mes"></div></div>
                 <div class="card insight-card"><h3>📉 Mês mais barato</h3><div id="va-menor-mes"></div></div>
             </div>
+            </div>
+            <div class="annual-section" id="annual-section-evolucao">
             <div class="charts-row">
                 <div class="card chart-card"><h3>📈 Despesas vs Receitas por Mês</h3><div id="chart-anual-evo" style="height:350px"></div></div>
                 <div class="card chart-card"><h3>🥧 Categorias no Ano</h3><div id="chart-anual-cat" style="height:350px"></div></div>
             </div>
+            </div>
+            <div class="annual-section" id="annual-section-rankings">
             <div class="dashboard-grid">
                 <div class="card"><h3>🏆 Top 10 gastos do ano</h3><div id="anual-top-gastos"></div></div>
                 <div class="card"><h3>📂 Ranking de categorias</h3><div id="anual-top-cats"></div></div>
+                <div class="card"><h3>🏪 Estabelecimentos do ano</h3><div id="anual-top-estab"></div></div>
+            </div>
+            </div>
+            <div class="annual-section" id="annual-section-recorrentes">
+                <div class="card"><h3>🔄 Gastos recorrentes do ano</h3><div id="lista-recorrentes"></div></div>
             </div>
         </div> <!-- /dash-anual -->
     </section>
@@ -171,8 +189,8 @@
         <div class="filter-bar">
             <select id="tx-mes" class="filter-select" onchange="loadTransacoes()"><option value="">Todos os meses</option></select>
             <span style="color:var(--text-dim);font-size:0.85rem">ou intervalo:</span>
-            <input type="month" id="tx-mes-inicio" class="form-input short-input" onchange="loadTransacoes()" title="Mês inicial">
-            <input type="month" id="tx-mes-fim" class="form-input short-input" onchange="loadTransacoes()" title="Mês final">
+            <label class="month-field"><span>De</span><input type="month" id="tx-mes-inicio" onchange="loadTransacoes()" title="Mês inicial"></label>
+            <label class="month-field"><span>Ate</span><input type="month" id="tx-mes-fim" onchange="loadTransacoes()" title="Mês final"></label>
             <select id="tx-cat" class="filter-select" onchange="loadTransacoes()"><option value="">Todas categorias</option><option value="sem">Sem categoria</option></select>
             <select id="tx-cartao" class="filter-select" onchange="loadTransacoes()"><option value="">Todos cartões</option></select>
             <select id="tx-resp" class="filter-select" onchange="loadTransacoes()"><option value="">Todos responsáveis</option></select>

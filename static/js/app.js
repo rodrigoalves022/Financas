@@ -369,15 +369,79 @@ function renderTopTables(topGastos, topEstab) {
         `),
     );
     document.getElementById('top-estabelecimentos').innerHTML = renderSimpleTable(
-        ['Estabelecimento', 'Qtd', 'Total'],
-        topEstab.map(r => `
+        ['#', 'Estabelecimento', 'Total', 'Qtd', 'Variantes'],
+        topEstab.map((r, i) => `
             <tr>
-                <td>${escapeHtml(r.nome_exibido)}</td>
-                <td>${r.quantidade}</td>
+                <td>${i + 1}</td>
+                <td><strong>${escapeHtml(r.nome)}</strong></td>
                 <td class="valor-cell">${BRL(r.total)}</td>
+                <td>${r.quantidade}</td>
+                <td class="muted-line">${escapeHtml((r.variantes || []).join(' / '))}${r.variantes_count > 4 ? ` +${r.variantes_count - 4}` : ''}</td>
             </tr>
         `),
     );
+}
+
+function renderCategoryRanking(rows) {
+    const target = document.getElementById('top-categorias-mes');
+    if (!target) return;
+    const total = rows.reduce((sum, row) => sum + Number(row.total || 0), 0);
+    target.innerHTML = renderSimpleTable(
+        ['#', 'Categoria', 'Total', '%'],
+        rows.map((r, i) => `
+            <tr>
+                <td>${i + 1}</td>
+                <td>${escapeHtml(r.emoji)} ${escapeHtml(r.nome)}</td>
+                <td class="valor-cell">${BRL(r.total)}</td>
+                <td>${total ? Math.round((r.total / total) * 100) : 0}%</td>
+            </tr>
+        `),
+    );
+}
+
+function renderDashboardInsights(data, alertas) {
+    const target = document.getElementById('dash-insights');
+    if (!target) return;
+    const txCount = data.comparativo_mes?.atual?.quantidade || 0;
+    const ticket = txCount ? data.total_despesas / txCount : 0;
+    const topCat = data.por_categoria?.[0];
+    const topMerchant = data.top_estabelecimentos?.[0];
+    const items = [
+        { label: 'Ticket medio', value: BRL(ticket), meta: `${txCount} compras no periodo` },
+        { label: 'Categoria lider', value: topCat ? `${escapeHtml(topCat.emoji)} ${escapeHtml(topCat.nome)}` : 'Sem dados', meta: topCat ? BRL(topCat.total) : '' },
+        { label: 'Estabelecimento lider', value: topMerchant ? escapeHtml(topMerchant.nome) : 'Sem dados', meta: topMerchant ? `${BRL(topMerchant.total)} em ${topMerchant.quantidade} compras` : '' },
+        { label: 'Alertas ativos', value: String(alertas?.length || 0), meta: alertas?.length ? 'Gastos acima do historico' : 'Sem desvios relevantes' },
+    ];
+    target.innerHTML = items.map(item => `
+        <div class="insight-row">
+            <span>${item.label}</span>
+            <strong>${item.value}</strong>
+            <small>${item.meta}</small>
+        </div>
+    `).join('');
+}
+
+function renderAlertasGastos(alertas) {
+    const alertGastos = document.getElementById('alert-gastos');
+    const alertGastosMsg = document.getElementById('alert-gastos-msg');
+    if (!alertas || !alertas.length) {
+        alertGastos.style.display = 'none';
+        return;
+    }
+    alertGastos.style.display = 'block';
+    alertGastos.className = `alert alert-spend ${alertas[0].nivel === 'critico' ? 'alert-danger' : 'alert-warning'}`;
+    alertGastosMsg.innerHTML = `
+        <div class="alert-title">Alertas de gasto</div>
+        <div class="alert-grid">
+            ${alertas.slice(0, 4).map(a => `
+                <div class="alert-tile ${a.nivel}">
+                    <div class="alert-tile-name">${escapeHtml(a.emoji)} ${escapeHtml(a.categoria)}</div>
+                    <div class="alert-tile-value">${BRL(a.total_atual)}</div>
+                    <div class="alert-tile-meta">+${a.delta_pct}% vs media ${BRL(a.media_historica)}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
 }
 
 function renderDashOrcamentos(orcamentos) {
@@ -423,6 +487,34 @@ function getDashboardParams() {
     return params;
 }
 
+function syncDashboardPeriodButtons() {
+    const params = getDashboardParams();
+    document.getElementById('dash-period-all')?.classList.toggle('active', params.toString() === '');
+}
+
+function setDashboardAll() {
+    document.getElementById('dash-mes').value = '';
+    document.getElementById('dash-mes-inicio').value = '';
+    document.getElementById('dash-mes-fim').value = '';
+    syncDashboardPeriodButtons();
+    loadDashboard();
+}
+
+function setDashboardMonth() {
+    document.getElementById('dash-mes-inicio').value = '';
+    document.getElementById('dash-mes-fim').value = '';
+    syncDashboardPeriodButtons();
+    loadDashboard();
+}
+
+function setDashboardRange() {
+    const ini = document.getElementById('dash-mes-inicio').value;
+    const fim = document.getElementById('dash-mes-fim').value;
+    if (ini && fim) document.getElementById('dash-mes').value = '';
+    syncDashboardPeriodButtons();
+    loadDashboard();
+}
+
 async function loadDashboard() {
     try {
         const mes = document.getElementById('dash-mes').value;
@@ -431,11 +523,12 @@ async function loadDashboard() {
         const mesInicio = dashParams.get('mes_inicio');
         const mesFim = dashParams.get('mes_fim');
         const rangeActive = Boolean(mesInicio && mesFim);
+        const monthOnly = !rangeActive && Boolean(mes);
         const [data, orcStatus, semanal, alertas, devedores] = await Promise.all([
             api(`/api/dashboard-data${dashQuery ? `?${dashQuery}` : ''}`),
-            api(`/api/orcamentos/status${!rangeActive && mes ? `?mes=${mes}` : ''}`).catch(() => []),
-            api(`/api/analytics/semanal${!rangeActive && mes ? `?mes=${mes}` : ''}`).catch(() => []),
-            api(`/api/analytics/alertas${!rangeActive && mes ? `?mes=${mes}` : ''}`).catch(() => []),
+            api(`/api/orcamentos/status${monthOnly ? `?mes=${mes}` : ''}`).catch(() => []),
+            monthOnly ? api(`/api/analytics/semanal?mes=${mes}`).catch(() => []) : Promise.resolve([]),
+            monthOnly ? api(`/api/analytics/alertas?mes=${mes}`).catch(() => []) : Promise.resolve([]),
             api(`/api/analytics/devedores`).catch(() => ({ devedores: [], total_a_receber: 0 })),
         ]);
 
@@ -479,6 +572,8 @@ async function loadDashboard() {
             alertGastos.style.display = 'none';
         }
 
+        renderAlertasGastos(alertas);
+
         const btnAjustar = document.getElementById('btn-ajustar-saldo');
         if (btnAjustar) {
             btnAjustar.style.display = (!rangeActive && mes && data.saldo_contabil < 0) ? 'inline-block' : 'none';
@@ -497,17 +592,13 @@ async function loadDashboard() {
                 o.value = m.value; o.textContent = m.label;
                 txMonth.appendChild(o);
             });
-            if (!mes && data.mes_selecionado) {
-                monthSelect.value = data.mes_selecionado;
-                txMonth.value = data.mes_selecionado;
-                loadDashboard();
-                return;
-            }
         }
         if (mes) monthSelect.value = mes;
+        syncDashboardPeriodButtons();
 
         renderCompare(data.comparativo_mes);
         renderReviewCounters(data.review);
+        renderDashboardInsights(data, alertas);
         renderDashOrcamentos(orcStatus);
         renderDashDevedores(devedores);
         renderCategoryChart(data.por_categoria);
@@ -516,8 +607,8 @@ async function loadDashboard() {
         renderSemanaChart(semanal);
         renderDayChart(data.gastos_por_dia);
         renderParcelChart(data.parcelas_futuras_mes);
-        renderRecurringList('lista-recorrentes', data.recorrentes);
         renderTopTables(data.top_gastos, data.top_estabelecimentos);
+        renderCategoryRanking(data.por_categoria);
         requestAnimationFrame(resizeVisibleCharts);
     } catch (error) {
         toast(error.message, 'error');
@@ -537,15 +628,23 @@ function showDashView(view) {
 
 function showDashSection(section) {
     document.querySelectorAll('.dash-section').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.section-tab').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('[data-dash-section]').forEach(el => el.classList.remove('active'));
     document.getElementById(`dash-section-${section}`)?.classList.add('active');
     document.querySelector(`[data-dash-section="${section}"]`)?.classList.add('active');
     requestAnimationFrame(resizeVisibleCharts);
 }
 
+function showAnnualSection(section) {
+    document.querySelectorAll('.annual-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('[data-annual-section]').forEach(el => el.classList.remove('active'));
+    document.getElementById(`annual-section-${section}`)?.classList.add('active');
+    document.querySelector(`[data-annual-section="${section}"]`)?.classList.add('active');
+    requestAnimationFrame(resizeVisibleCharts);
+}
+
 function resizeVisibleCharts() {
     if (!window.Plotly) return;
-    document.querySelectorAll('.dash-section.active [id^="chart-"], #dash-anual:not([style*="display: none"]) [id^="chart-"]').forEach(el => {
+    document.querySelectorAll('.dash-section.active [id^="chart-"], .annual-section.active [id^="chart-"]').forEach(el => {
         if (el.offsetParent) Plotly.Plots.resize(el);
     });
 }
@@ -612,6 +711,12 @@ async function loadDashboardAnual() {
             ['Categoria', 'Qtd', 'Média', 'Total'],
             data.top_categorias.map(r => `<tr><td>${r.emoji} ${escapeHtml(r.nome)}</td><td>${r.quantidade}</td><td class="valor-cell">${BRL(r.media)}</td><td class="valor-cell">${BRL(r.total)}</td></tr>`)
         );
+        document.getElementById('anual-top-estab').innerHTML = renderSimpleTable(
+            ['#', 'Estabelecimento', 'Total', 'Qtd', 'Variantes'],
+            (data.top_estabelecimentos || []).map((r, i) => `<tr><td>${i+1}</td><td><strong>${escapeHtml(r.nome)}</strong></td><td class="valor-cell">${BRL(r.total)}</td><td>${r.quantidade}</td><td class="muted-line">${escapeHtml((r.variantes || []).join(' / '))}</td></tr>`)
+        );
+        renderRecurringList('lista-recorrentes', data.recorrentes || []);
+        requestAnimationFrame(resizeVisibleCharts);
     } catch (error) {
         toast(error.message, 'error');
     }
@@ -659,6 +764,16 @@ function getTransactionParams() {
     if (document.getElementById('tx-recorrentes').checked) params.set('recorrentes', 'true');
     if (document.getElementById('tx-ignoradas').checked) params.set('ignoradas', 'true');
     return params;
+}
+
+function initMonthFields() {
+    document.querySelectorAll('.month-field').forEach(field => {
+        const input = field.querySelector('input[type="month"]');
+        field.addEventListener('click', () => {
+            input.focus();
+            if (input.showPicker) input.showPicker();
+        });
+    });
 }
 
 let txTimer;
@@ -1381,6 +1496,7 @@ async function delDivida(id) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        initMonthFields();
         await loadCategorias();
         await loadFiltros();
         await loadDashboard();

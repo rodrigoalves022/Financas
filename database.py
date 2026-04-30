@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 import re
+import unicodedata
 from contextlib import contextmanager
 from datetime import date as date_type, datetime
 from dateutil.relativedelta import relativedelta
@@ -304,6 +305,59 @@ def _add_mes_filter(sql, params, field, mes=None, mes_inicio=None, mes_fim=None)
             sql += f" AND {field} = ?"
             params.append(f"{year}-{month}")
     return sql
+
+
+def _normalize_text(value):
+    value = unicodedata.normalize("NFKD", str(value or ""))
+    value = "".join(ch for ch in value if not unicodedata.combining(ch))
+    value = re.sub(r"[^A-Za-z0-9]+", " ", value).upper().strip()
+    return re.sub(r"\s+", " ", value)
+
+
+def _merchant_group_key(value):
+    text = _normalize_text(value)
+    text = re.sub(r"\b\d{3,}\b", " ", text)
+    tokens = text.split()
+    trailing_noise = {"BRA", "BR", "BRASIL", "GOIANIA", "APARECIDA", "ECPC", "GBU", "DE"}
+    while tokens and tokens[-1] in trailing_noise:
+        tokens.pop()
+    text = " ".join(tokens)
+    text = re.sub(r"\s+", " ", text).strip()
+    if text.startswith("CEA "):
+        return "CEA"
+    if text.startswith("PIX CRED"):
+        return "PIX CRED A VISTA"
+    return text or _normalize_text(value)
+
+
+def _group_merchants(rows, limit=12):
+    groups = {}
+    for row in rows:
+        name = row.get("nome_exibido") or row.get("descricao") or ""
+        key = _merchant_group_key(name)
+        group = groups.setdefault(key, {
+            "nome": min([name, key], key=len) if name else key,
+            "total": 0.0,
+            "quantidade": 0,
+            "variantes": set(),
+        })
+        group["total"] += float(row.get("valor") or row.get("total") or 0)
+        group["quantidade"] += int(row.get("quantidade") or 1)
+        group["variantes"].add(name)
+        if len(name) < len(group["nome"]):
+            group["nome"] = name
+    result = []
+    for group in groups.values():
+        variants = sorted(v for v in group["variantes"] if v)
+        result.append({
+            "nome": group["nome"],
+            "total": round(group["total"], 2),
+            "quantidade": group["quantidade"],
+            "variantes": variants[:4],
+            "variantes_count": len(variants),
+        })
+    result.sort(key=lambda item: item["total"], reverse=True)
+    return result[:limit]
 
 
 # ──────────────────────── Categorias ────────────────────────
@@ -1176,18 +1230,19 @@ def get_dashboard_data(mes=None, mes_inicio=None, mes_fim=None):
             params_month,
         ).fetchall()]
 
-        top_estabelecimentos = [dict(r) for r in db.execute(
+        estabelecimentos_base = [dict(r) for r in db.execute(
             f"""SELECT COALESCE(a.alias, t.descricao) AS nome_exibido,
                        COUNT(*) AS quantidade,
                        ROUND(SUM(t.valor), 2) AS total
                 FROM transacoes t
                 LEFT JOIN aliases a ON UPPER(a.descricao_original)=UPPER(t.descricao)
                 WHERE {base_month_clause}
-                GROUP BY t.descricao
+                GROUP BY COALESCE(a.alias, t.descricao)
                 ORDER BY total DESC
-                LIMIT 10""",
+                LIMIT 80""",
             params_month,
         ).fetchall()]
+        top_estabelecimentos = _group_merchants(estabelecimentos_base, limit=12)
 
         gastos_por_dia = [dict(r) for r in db.execute(
             f"""SELECT SUBSTR(t.data,1,2) AS dia,
@@ -1365,6 +1420,34 @@ def get_dashboard_anual(ano=None):
             (param,)
         ).fetchall()]
 
+        top_estabelecimentos_base = [dict(r) for r in db.execute(
+            f"SELECT COALESCE(a.alias, t.descricao) AS nome_exibido, "
+            f"COUNT(*) AS quantidade, ROUND(SUM(t.valor),2) AS total "
+            f"FROM transacoes t "
+            f"LEFT JOIN aliases a ON UPPER(a.descricao_original)=UPPER(t.descricao) "
+            f"WHERE {_real_clause('t.')} AND COALESCE(t.ignorado,0)=0 AND t.mes_referencia LIKE ? "
+            f"GROUP BY COALESCE(a.alias, t.descricao) ORDER BY total DESC LIMIT 120",
+            (param,),
+        ).fetchall()]
+
+        recorrentes = [dict(r) for r in db.execute(
+            f"""
+            SELECT COALESCE(a.alias, t.descricao) AS nome_exibido,
+                   COUNT(*) AS quantidade,
+                   COUNT(DISTINCT t.mes_referencia) AS meses,
+                   ROUND(AVG(t.valor), 2) AS valor_medio,
+                   ROUND(SUM(t.valor), 2) AS total
+            FROM transacoes t
+            LEFT JOIN aliases a ON UPPER(a.descricao_original)=UPPER(t.descricao)
+            WHERE {_real_clause('t.')} AND COALESCE(t.ignorado,0)=0 AND t.mes_referencia LIKE ?
+            GROUP BY COALESCE(a.alias, t.descricao)
+            HAVING COUNT(DISTINCT t.mes_referencia) >= 3
+            ORDER BY meses DESC, total DESC
+            LIMIT 12
+            """,
+            (param,),
+        ).fetchall()]
+
         anos = [r[0] for r in db.execute(
             "SELECT DISTINCT SUBSTR(mes_referencia,1,4) FROM transacoes "
             "WHERE mes_referencia != '' ORDER BY 1 DESC"
@@ -1386,6 +1469,8 @@ def get_dashboard_anual(ano=None):
             "menor_mes": dict(menor_mes) if menor_mes else None,
             "top_gastos": top_gastos,
             "top_categorias": top_categorias,
+            "top_estabelecimentos": _group_merchants(top_estabelecimentos_base, limit=15),
+            "recorrentes": recorrentes,
         }
 
 
