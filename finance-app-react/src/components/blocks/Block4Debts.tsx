@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useFinance } from '../../store/FinanceContext';
 import { getDebtBalance, getDebtPayoffRows } from '../../utils/analytics';
-import { formatBRL, formatDate } from '../../utils/formatters';
+import { AXIS_PROPS, GRID_COLOR, TOOLTIP_PROPS } from '../../utils/chartTheme';
+import { formatBRL, formatDate, normalizeText } from '../../utils/formatters';
 import { DataTable, type Column } from '../ui/DataTable';
 import type { Debt } from '../../types';
 
@@ -39,19 +40,64 @@ const payoffMonths = (debt: Debt, remaining: number) => {
 };
 
 export function Block4Debts() {
-  const { debts, transactions } = useFinance();
+  const { debts, transactions, receivables, members } = useFinance();
   const [extraPayment, setExtraPayment] = useState(0);
 
-  const rows = useMemo<DebtRow[]>(() => debts.map(debt => {
-    const remaining = getDebtBalance(debt, transactions);
-    return {
-      ...debt,
-      remaining,
-      progress: debt.totalAmount ? ((debt.totalAmount - remaining) / debt.totalAmount) * 100 : 0,
-      risk: riskOf(debt.interestRate),
-      payoffMonths: payoffMonths(debt, remaining),
-    };
-  }), [debts, transactions]);
+  const rows = useMemo<DebtRow[]>(() => {
+    const receivableByPerson = new Map<string, { card: number; cash: number; all: number }>();
+    receivables
+      .filter(receivable => receivable.status !== 'quitado')
+      .forEach(receivable => {
+        const member = members.find(item => item.id === receivable.memberId);
+        if (!member?.name || member.isOwner) return;
+        const key = normalizeText(member.name);
+        const current = receivableByPerson.get(key) || { card: 0, cash: 0, all: 0 };
+        const remaining = Math.max(0, receivable.amount - receivable.paidAmount);
+        if (receivable.source === 'emprestimo_pix') current.cash += remaining;
+        else current.card += remaining;
+        current.all += remaining;
+        receivableByPerson.set(key, current);
+      });
+
+    const debtRows = debts.flatMap(debt => {
+      const personReceivables = receivableByPerson.get(normalizeText(debt.counterparty));
+      const duplicatedCardReceivable = debt.type === 'a_receber' && debt.origin === 'cartao' && (personReceivables?.card || 0) > 0;
+      const duplicatedCashReceivable = debt.type === 'a_receber' && debt.origin === 'emprestimo' && (personReceivables?.cash || 0) > 0;
+      if (duplicatedCardReceivable || duplicatedCashReceivable) return [];
+      const remaining = getDebtBalance(debt, transactions);
+      return [{
+        ...debt,
+        remaining,
+        progress: debt.totalAmount ? ((debt.totalAmount - remaining) / debt.totalAmount) * 100 : 0,
+        risk: riskOf(debt.interestRate),
+        payoffMonths: payoffMonths(debt, remaining),
+      }];
+    });
+
+    const receivableRows = Array.from(receivableByPerson.entries()).flatMap(([personKey, total]) => {
+      const member = members.find(item => normalizeText(item.name) === personKey);
+      if (!member || total.all <= 0) return [];
+      return [{
+        id: `receivable-total-${member.id}`,
+        type: 'a_receber' as const,
+        origin: total.cash > 0 && total.card === 0 ? 'emprestimo' as const : 'cartao' as const,
+        counterparty: member.name,
+        totalAmount: total.all,
+        paidAmount: 0,
+        monthlyPayment: 0,
+        interestRate: 0,
+        startDate: new Date().toISOString().substring(0, 10),
+        linkedTransactionIds: [],
+        note: 'Total operacional em cobrancas, divisoes, emprestimos e Pix',
+        remaining: total.all,
+        progress: 0,
+        risk: 'Controlado',
+        payoffMonths: 0,
+      }];
+    });
+
+    return [...debtRows, ...receivableRows];
+  }, [debts, members, receivables, transactions]);
 
   const totals = useMemo(() => {
     const payable = rows.filter(item => item.type === 'a_pagar');
@@ -89,10 +135,11 @@ export function Block4Debts() {
     { key: 'type', header: 'Tipo', accessor: row => row.type === 'a_receber' ? 'A receber' : 'A pagar', align: 'center' },
     { key: 'origin', header: 'Origem', accessor: row => row.origin, align: 'center' },
     { key: 'remaining', header: 'Saldo', accessor: row => row.remaining, render: row => formatBRL(row.remaining), align: 'right', sortValue: row => row.remaining },
-    { key: 'monthlyPayment', header: 'Parcela', accessor: row => row.monthlyPayment, render: row => formatBRL(row.monthlyPayment), align: 'right' },
+    { key: 'monthlyPayment', header: 'Parcela', accessor: row => row.currentInstallment && row.totalInstallments ? `${formatBRL(row.monthlyPayment)} ${row.currentInstallment}/${row.totalInstallments}` : formatBRL(row.monthlyPayment), align: 'right' },
     { key: 'interestRate', header: 'Juros', accessor: row => `${row.interestRate}%`, align: 'center', sortValue: row => row.interestRate },
     { key: 'risk', header: 'Risco', accessor: row => row.risk, align: 'center', render: row => <span className={`badge ${row.risk === 'Alto' ? 'danger' : row.risk === 'Medio' ? 'warning' : 'success'}`}>{row.risk}</span> },
     { key: 'startDate', header: 'Inicio', accessor: row => formatDate(row.startDate), align: 'center', sortValue: row => row.startDate },
+    { key: 'note', header: 'Nota', accessor: row => row.note || '', align: 'left' },
   ];
 
   const summaryColumns: Column<PersonDebtSummary>[] = [
@@ -119,11 +166,11 @@ export function Block4Debts() {
         <h3>Resumo por tipo</h3>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={debtByType}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#dbe3ef" vertical={false} />
-            <XAxis dataKey="name" />
-            <YAxis tickFormatter={value => `R$${Number(value) / 1000}k`} />
-            <Tooltip formatter={value => formatBRL(Number(value || 0))} />
-            <Bar dataKey="value" fill="#2563eb" radius={[6, 6, 0, 0]} />
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+            <XAxis dataKey="name" {...AXIS_PROPS} />
+            <YAxis {...AXIS_PROPS} tickFormatter={value => `R$${Number(value) / 1000}k`} />
+            <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} />
+            <Bar dataKey="value" name="Valor" fill="#2563eb" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -139,10 +186,10 @@ export function Block4Debts() {
         {payoffDebt ? (
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={payoffRows}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#dbe3ef" />
-              <XAxis dataKey="month" tickFormatter={value => `${value}m`} />
-              <YAxis tickFormatter={value => `R$${Number(value) / 1000}k`} />
-              <Tooltip formatter={value => formatBRL(Number(value || 0))} labelFormatter={value => `Mes ${value}`} />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+              <XAxis dataKey="month" {...AXIS_PROPS} tickFormatter={value => `${value}m`} />
+              <YAxis {...AXIS_PROPS} tickFormatter={value => `R$${Number(value) / 1000}k`} />
+              <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} labelFormatter={value => `Mes ${value}`} />
               <Line dataKey="base" name="Sem aporte" stroke="#dc2626" strokeWidth={2} dot={false} />
               <Line dataKey="extra" name="Com aporte" stroke="#16a34a" strokeWidth={2} dot={false} />
             </LineChart>

@@ -7,8 +7,8 @@ import type { Category, Debt } from '../types';
 const numberOf = (value: string) => Number(value.replace(',', '.')) || 0;
 
 export function ManualEntryModal({ onClose }: { onClose: () => void }) {
-  const { addIncome, addDebt, setCategories, categories } = useFinance();
-  const [mode, setMode] = useState<'income' | 'debt' | 'category'>('income');
+  const { addIncome, addDebt, addBudget, setCategories, categories } = useFinance();
+  const [mode, setMode] = useState<'income' | 'debt' | 'budget' | 'category'>('income');
 
   const [incomeMonth, setIncomeMonth] = useState(new Date().toISOString().substring(0, 7));
   const [incomeAmount, setIncomeAmount] = useState('');
@@ -22,6 +22,8 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
   const [startDate, setStartDate] = useState(new Date().toISOString().substring(0, 10));
   const [note, setNote] = useState('');
   const [categoryName, setCategoryName] = useState('');
+  const [budgetCategoryId, setBudgetCategoryId] = useState(categories[0]?.id || 'outros');
+  const [budgetLimit, setBudgetLimit] = useState('');
 
   const saveIncome = (event: FormEvent) => {
     event.preventDefault();
@@ -57,6 +59,12 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
     setCategoryName('');
   };
 
+  const saveBudget = (event: FormEvent) => {
+    event.preventDefault();
+    addBudget({ categoryId: budgetCategoryId, monthlyLimit: numberOf(budgetLimit) });
+    onClose();
+  };
+
   return (
     <div className="modal-backdrop">
       <div className="modal">
@@ -71,6 +79,7 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
         <div className="segmented">
           <button className={mode === 'income' ? 'active' : ''} onClick={() => setMode('income')}>Receita</button>
           <button className={mode === 'debt' ? 'active' : ''} onClick={() => setMode('debt')}>Divida</button>
+          <button className={mode === 'budget' ? 'active' : ''} onClick={() => setMode('budget')}>Meta</button>
           <button className={mode === 'category' ? 'active' : ''} onClick={() => setMode('category')}>Categoria</button>
         </div>
 
@@ -106,6 +115,18 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
             <label>Data<input type="date" required value={startDate} onChange={event => setStartDate(event.target.value)} /></label>
             <label className="full">Observacao<input value={note} onChange={event => setNote(event.target.value)} /></label>
             <button className="primary-button full" type="submit">Salvar divida</button>
+          </form>
+        ) : null}
+
+        {mode === 'budget' ? (
+          <form className="form-grid" onSubmit={saveBudget}>
+            <label className="full">Categoria
+              <select required value={budgetCategoryId} onChange={event => setBudgetCategoryId(event.target.value)}>
+                {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </select>
+            </label>
+            <label className="full">Teto mensal<input type="number" step="0.01" required value={budgetLimit} onChange={event => setBudgetLimit(event.target.value)} /></label>
+            <button className="primary-button full" type="submit">Salvar meta</button>
           </form>
         ) : null}
 

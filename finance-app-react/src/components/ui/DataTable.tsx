@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Search } from 'lucide-react';
 
@@ -38,7 +38,7 @@ export function DataTable<T>({
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const size = initialPageSize || pageSize;
-  const getValue = (column: Column<T>, row: T) => (column.value || column.accessor || (() => ''))(row);
+  const getValue = useCallback((column: Column<T>, row: T) => (column.value || column.accessor || (() => ''))(row), []);
 
   const sortedRows = useMemo(() => {
     const filtered = rows.filter(row => {
@@ -62,7 +62,7 @@ export function DataTable<T>({
         : String(aValue).localeCompare(String(bValue), 'pt-BR');
       return sortDirection === 'asc' ? result : -result;
     });
-  }, [rows, columns, search, columnFilters, sortKey, sortDirection]);
+  }, [rows, columns, search, columnFilters, sortKey, sortDirection, getValue]);
 
   const pageCount = Math.max(1, Math.ceil(sortedRows.length / size));
   const currentPage = Math.min(page, pageCount);
@@ -95,7 +95,7 @@ export function DataTable<T>({
                 <th key={column.key} className={`align-${column.align || 'left'}`}>
                   <button type="button" onClick={() => (column.sortable ?? true) && toggleSort(column.key)}>
                     {column.header || column.label}
-                    {sortKey === column.key ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}
+                    {sortKey === column.key ? (sortDirection === 'asc' ? ' ^' : ' v') : ''}
                   </button>
                 </th>
               ))}

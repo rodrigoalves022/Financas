@@ -1,16 +1,19 @@
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, Treemap, XAxis, YAxis, ZAxis } from 'recharts';
 import { useFinance } from '../../store/FinanceContext';
-import { filterByMonth, getCategoryTotals, getMerchantTotals } from '../../utils/analytics';
+import { filterByMonth, getAccountingMonth, getCategoryTotals, getMerchantTotals, getMonthCategoryDiff } from '../../utils/analytics';
+import { AXIS_PROPS, GRID_COLOR, TOOLTIP_PROPS } from '../../utils/chartTheme';
 import { formatBRL, formatMonth } from '../../utils/formatters';
 import { DataTable } from '../ui/DataTable';
 
-export function Block2WhereMoneyWent({ selectedMonth }: { selectedMonth: string }) {
+export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selectedMonth: string; compareMonth: string }) {
   const { transactions, categories, aliases } = useFinance();
   const scoped = filterByMonth(transactions, selectedMonth);
   const categoryTotals = getCategoryTotals(scoped, categories);
   const merchants = getMerchantTotals(scoped, aliases).slice(0, 15);
   const top3 = categoryTotals.slice(0, 3);
-  const months = Array.from(new Set(transactions.map(item => item.date.substring(0, 7)))).sort();
+  const monthDiff = selectedMonth && compareMonth ? getMonthCategoryDiff(transactions, categories, selectedMonth, compareMonth).slice(0, 8) : [];
+  const scatterRows = categoryTotals.map(item => ({ ...item, x: item.count, y: item.total, z: item.averageTicket }));
+  const months = Array.from(new Set(transactions.map(item => getAccountingMonth(item)))).sort();
   const evolution = months.map(month => {
     const monthRows = filterByMonth(transactions, month);
     const totals = getCategoryTotals(monthRows, categories);
@@ -26,11 +29,11 @@ export function Block2WhereMoneyWent({ selectedMonth }: { selectedMonth: string 
         <h3>Categorias rankeadas</h3>
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={categoryTotals.slice(0, 10)} layout="vertical" margin={{ left: 24 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis type="number" tickFormatter={value => `R$${Number(value) / 1000}k`} />
-            <YAxis type="category" dataKey="name" width={96} />
-            <Tooltip formatter={value => formatBRL(Number(value || 0))} />
-            <Bar dataKey="total" fill="#2563eb" radius={[0, 6, 6, 0]} />
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+            <XAxis {...AXIS_PROPS} type="number" tickFormatter={value => `R$${Number(value) / 1000}k`} />
+            <YAxis {...AXIS_PROPS} type="category" dataKey="name" width={116} />
+            <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} />
+            <Bar dataKey="total" name="Total" fill="#2563eb" radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -38,14 +41,51 @@ export function Block2WhereMoneyWent({ selectedMonth }: { selectedMonth: string 
         <h3>Top 3 categorias no tempo</h3>
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={evolution}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="month" />
-            <YAxis tickFormatter={value => `R$${Number(value) / 1000}k`} />
-            <Tooltip formatter={value => formatBRL(Number(value || 0))} />
-            {top3.map(category => <Line key={category.id} type="monotone" dataKey={category.name} stroke={category.color} strokeWidth={3} />)}
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+            <XAxis dataKey="month" {...AXIS_PROPS} />
+            <YAxis {...AXIS_PROPS} tickFormatter={value => `R$${Number(value) / 1000}k`} />
+            <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} />
+            {top3.map(category => <Line key={category.id} type="monotone" dataKey={category.name} name={category.name} stroke={category.color} strokeWidth={3} />)}
           </LineChart>
         </ResponsiveContainer>
       </div>
+      <div className="chart-card">
+        <h3>Mapa de proporcao de gastos</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <Treemap data={categoryTotals.map(item => ({ name: item.name, size: item.total, color: item.color }))} dataKey="size" nameKey="name" stroke="#111827">
+            {categoryTotals.map(item => <Cell key={item.id} fill={item.color} />)}
+          </Treemap>
+        </ResponsiveContainer>
+      </div>
+      <div className="chart-card">
+        <h3>Valor x frequencia</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <ScatterChart>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+            <XAxis {...AXIS_PROPS} type="number" dataKey="x" name="Compras" />
+            <YAxis {...AXIS_PROPS} type="number" dataKey="y" name="Total" tickFormatter={value => `R$${Number(value) / 1000}k`} />
+            <ZAxis type="number" dataKey="z" range={[80, 420]} />
+            <Tooltip {...TOOLTIP_PROPS} cursor={{ strokeDasharray: '3 3' }} formatter={value => formatBRL(Number(value || 0))} />
+            <Scatter data={scatterRows} fill="#0ea5e9" name="Categorias" />
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+      {monthDiff.length ? (
+        <div className="table-card wide">
+          <h3>Comparativo mes a mes</h3>
+          <DataTable
+            rows={monthDiff}
+            emptyLabel="Selecione dois meses para comparar."
+            columns={[
+              { key: 'name', label: 'Categoria', sortable: true, filterable: true, value: row => row.name },
+              { key: 'current', label: selectedMonth, align: 'right', sortable: true, value: row => row.current, render: row => formatBRL(row.current) },
+              { key: 'compare', label: compareMonth, align: 'right', sortable: true, value: row => row.compare, render: row => formatBRL(row.compare) },
+              { key: 'diff', label: 'Diferenca', align: 'right', sortable: true, value: row => row.diff, render: row => <span className={row.diff > 0 ? 'bad-text' : 'good-text'}>{formatBRL(row.diff)}</span> },
+              { key: 'percent', label: '%', align: 'center', sortable: true, value: row => row.percent || 0, render: row => row.percent === null ? '-' : `${row.percent.toFixed(1)}%` },
+            ]}
+          />
+        </div>
+      ) : null}
       <div className="table-card wide">
         <h3>Ranking por categoria</h3>
         <DataTable

@@ -60,7 +60,9 @@ export const parseCSV = (input: File | string, categories: Category[], sourceFil
             const amount = toNumber(getValue(row, ['valor', 'amount']));
             const installment = String(getValue(row, ['tipo', 'parcela'])).match(/(\d+\/\d+)/)?.[1];
             const isCredit = amount < 0;
-            const shouldIgnore = IGNORE_TERMS.some(term => normalizeText(description).includes(normalizeText(term)));
+            const normalizedDescription = normalizeText(description);
+            const isPixCreditInterest = normalizedDescription.includes('JUROS') && normalizedDescription.includes('PIX CRED');
+            const shouldIgnore = !isPixCreditInterest && IGNORE_TERMS.some(term => normalizedDescription.includes(normalizeText(term)));
 
             if (!date || !description || amount === 0 || isCredit || shouldIgnore) return [];
 
