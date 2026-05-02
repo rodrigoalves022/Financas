@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Controle Financeiro</string>
+    <string name="title_activity_main">Controle Financeiro</string>
+    <string name="package_name">br.com.rodrigo.financas</string>
+    <string name="custom_url_scheme">br.com.rodrigo.financas</string>
+</resources>
