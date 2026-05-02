@@ -8,8 +8,6 @@
   color: #e5edf7;
   background: #090d18;
   font-family: var(--font-sans);
-  width: 100%;
-  overflow-x: hidden;
 }
 
 * {
@@ -20,16 +18,9 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  width: 100%;
-  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 32rem),
     #090d18;
-}
-
-#root {
-  width: 100%;
-  overflow-x: hidden;
 }
 
 button, input, select {
@@ -110,7 +101,6 @@ button {
 
 .workspace {
   min-width: 0;
-  max-width: 100%;
   grid-column: 2;
 }
 
@@ -126,8 +116,6 @@ button {
   background: rgba(9, 13, 24, 0.88);
   border-bottom: 1px solid #1f2a3d;
   backdrop-filter: blur(16px);
-  min-width: 0;
-  max-width: 100%;
 }
 
 .topbar h1 {
@@ -213,8 +201,6 @@ select, input {
   width: min(1500px, calc(100% - 40px));
   margin: 0 auto;
   padding: 28px 0 80px;
-  min-width: 0;
-  max-width: 100%;
 }
 
 .dashboard-section {
@@ -285,8 +271,6 @@ select, input {
 .chart-card, .table-card {
   min-height: 220px;
   padding: 18px;
-  min-width: 0;
-  max-width: 100%;
 }
 
 .chart-card h3, .table-card h3 {
@@ -347,9 +331,7 @@ select, input {
 
 .table-scroll {
   width: 100%;
-  max-width: 100%;
   overflow: auto;
-  -webkit-overflow-scrolling: touch;
   border: 1px solid #26344d;
   border-radius: 8px;
 }
@@ -359,12 +341,6 @@ select, input {
   border-collapse: collapse;
   min-width: 900px;
   font-size: 13px;
-}
-
-.recharts-wrapper,
-.recharts-responsive-container,
-.recharts-surface {
-  max-width: 100% !important;
 }
 
 .data-table th {
@@ -1094,7 +1070,7 @@ select, input {
     width: 100%;
   }
   .data-table {
-    min-width: 680px;
+    min-width: 760px;
   }
   .row-button-group,
   .row-actions {
@@ -1192,17 +1168,5 @@ select, input {
   }
   .heatmap-cell small {
     display: none;
-  }
-  .data-table {
-    min-width: 620px;
-    font-size: 12px;
-  }
-  .data-table th,
-  .data-table td {
-    padding: 8px 9px;
-  }
-  .column-filter {
-    min-width: 72px;
-    padding: 6px;
   }
 }
