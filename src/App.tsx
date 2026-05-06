@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { BarChart3, ChevronLeft, ChevronRight, CreditCard, Download, FileText, HandCoins, Landmark, LayoutDashboard, Upload, Users, Wallet } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, CreditCard, Download, FileText, HandCoins, Landmark, LayoutDashboard, Trash2, Upload, Users, Wallet } from 'lucide-react';
 import { FinanceProvider, useFinance } from './store/FinanceContext';
 import { ImportModal } from './components/ImportModal';
 import { TransactionLedger } from './components/TransactionLedger';
@@ -99,7 +99,7 @@ function FinanceApp() {
             ) : null}
             <button className="icon-button" onClick={() => window.print()} title="Exportar relatorio em PDF"><FileText size={18} /></button>
             <button className="icon-button" onClick={exportData} title="Exportar dados em JSON"><Download size={18} /></button>
-            <button className="icon-button danger" onClick={clearAllData} title="Limpar dados locais">x</button>
+            <button className="icon-button danger" onClick={clearAllData} title="Limpar todos os dados"><Trash2 size={18} /></button>
           </div>
         </header>
 
