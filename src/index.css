@@ -236,26 +236,106 @@ button {
 }
 
 /* ========================================
-   Formulários
+   Formulários Modernos
    ======================================== */
-select, input, textarea {
+select, 
+input:not([type="checkbox"]):not([type="radio"]), 
+textarea {
+  width: 100%;
+  min-height: 42px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  padding: 10px 14px;
   color: var(--color-text);
-  background: var(--color-bg-elevated);
+  background: var(--color-bg);
   font-size: 14px;
+  line-height: 1.5;
   transition: all var(--transition-fast);
 }
 
-select:hover, input:hover, textarea:hover {
+select:hover, 
+input:not([type="checkbox"]):not([type="radio"]):hover, 
+textarea:hover {
   border-color: var(--color-border-hover);
+  background: var(--color-bg-elevated);
 }
 
-select:focus, input:focus, textarea:focus {
+select:focus, 
+input:not([type="checkbox"]):not([type="radio"]):focus, 
+textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  background: var(--color-bg-elevated);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* Placeholder styling */
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+/* Date/Month/Time inputs */
+input[type="date"],
+input[type="month"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* Number input - esconder setas no Chrome/Safari */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Select com seta customizada */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* Textarea */
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Estados de erro */
+input.error,
+select.error,
+textarea.error {
+  border-color: var(--color-danger);
+}
+
+input.error:focus,
+select.error:focus,
+textarea.error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+/* Estados desabilitados */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--color-bg);
 }
 
 /* ========================================
@@ -842,7 +922,7 @@ select:focus, input:focus, textarea:focus {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 20px;
   padding: 24px;
 }
 
@@ -853,16 +933,84 @@ select:focus, input:focus, textarea:focus {
 .form-grid label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.form-grid label span.label-text,
+.form-grid label > span:first-child {
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }
 
 .form-grid .full, .primary-button.full {
   grid-column: 1 / -1;
+}
+
+/* Input com icone */
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon input {
+  padding-left: 40px;
+}
+
+.input-with-icon svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+/* Input group (prefixo/sufixo) */
+.input-group {
+  display: flex;
+  align-items: stretch;
+}
+
+.input-group input {
+  border-radius: 0;
+  flex: 1;
+}
+
+.input-group input:first-child {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.input-group input:last-child {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.input-group .input-prefix,
+.input-group .input-suffix {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.input-group .input-prefix {
+  border-right: 0;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.input-group .input-suffix {
+  border-left: 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 .error-text {
@@ -1150,8 +1298,99 @@ select:focus, input:focus, textarea:focus {
 }
 
 /* ========================================
-   Checkboxes e Pickers
+   Checkboxes Customizados
    ======================================== */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid var(--color-border-hover);
+  border-radius: 5px;
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+input[type="checkbox"]:hover {
+  border-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+input[type="checkbox"]:checked {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Radio Buttons Customizados */
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid var(--color-border-hover);
+  border-radius: 50%;
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+input[type="radio"]:hover {
+  border-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+input[type="radio"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+input[type="radio"]:checked {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+}
+
+input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Grid de Checkboxes */
 .checkbox-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1163,6 +1402,7 @@ select:focus, input:focus, textarea:focus {
   align-items: center;
   text-transform: none;
   font-size: 13px;
+  gap: 10px;
 }
 
 .members-layout {
@@ -1176,6 +1416,8 @@ select:focus, input:focus, textarea:focus {
   align-items: center;
   text-transform: none !important;
   font-size: 13px !important;
+  gap: 10px;
+  cursor: pointer;
 }
 
 .member-picker {
