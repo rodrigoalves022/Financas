@@ -5,6 +5,8 @@ import { AXIS_PROPS, GRID_COLOR, TOOLTIP_PROPS } from '../../utils/chartTheme';
 import { formatBRL, formatMonth } from '../../utils/formatters';
 import { DataTable } from '../ui/DataTable';
 
+const TREEMAP_COLORS = ['#5b7cfa', '#4aa3b5', '#6ea879', '#c79a58', '#9b7ac7', '#c46f75', '#6f93b8', '#8aa0b2', '#7a8fb8', '#5f9ea0'];
+
 export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selectedMonth: string; compareMonth: string }) {
   const { transactions, categories, aliases } = useFinance();
   const scoped = filterByMonth(transactions, selectedMonth);
@@ -13,6 +15,7 @@ export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selected
   const top3 = categoryTotals.slice(0, 3);
   const monthDiff = selectedMonth && compareMonth ? getMonthCategoryDiff(transactions, categories, selectedMonth, compareMonth).slice(0, 8) : [];
   const scatterRows = categoryTotals.map(item => ({ ...item, x: item.count, y: item.total, z: item.averageTicket }));
+  const treemapRows = categoryTotals.map((item, index) => ({ ...item, size: item.total, color: TREEMAP_COLORS[index % TREEMAP_COLORS.length] }));
   const months = Array.from(new Set(transactions.map(item => getAccountingMonth(item)))).sort();
   const evolution = months.map(month => {
     const monthRows = filterByMonth(transactions, month);
@@ -52,20 +55,21 @@ export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selected
       <div className="chart-card">
         <h3>Mapa de proporcao de gastos</h3>
         <ResponsiveContainer width="100%" height={300}>
-          <Treemap data={categoryTotals.map(item => ({ name: item.name, size: item.total, color: item.color }))} dataKey="size" nameKey="name" stroke="#111827">
-            {categoryTotals.map(item => <Cell key={item.id} fill={item.color} />)}
+          <Treemap data={treemapRows} dataKey="size" nameKey="name" stroke="#0f172a">
+            <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} />
+            {treemapRows.map(item => <Cell key={item.id} fill={item.color} />)}
           </Treemap>
         </ResponsiveContainer>
       </div>
       <div className="chart-card">
         <h3>Valor x frequencia</h3>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={340} minHeight={300}>
           <ScatterChart>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
             <XAxis {...AXIS_PROPS} type="number" dataKey="x" name="Compras" />
             <YAxis {...AXIS_PROPS} type="number" dataKey="y" name="Total" tickFormatter={value => `R$${Number(value) / 1000}k`} />
             <ZAxis type="number" dataKey="z" range={[80, 420]} />
-            <Tooltip {...TOOLTIP_PROPS} cursor={{ strokeDasharray: '3 3' }} formatter={value => formatBRL(Number(value || 0))} />
+            <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} />
             <Scatter data={scatterRows} fill="#0ea5e9" name="Categorias" />
           </ScatterChart>
         </ResponsiveContainer>

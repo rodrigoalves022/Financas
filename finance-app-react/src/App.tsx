@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { BarChart3, ChevronLeft, ChevronRight, CreditCard, Download, FileText, HandCoins, Landmark, LayoutDashboard, Upload, Users } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, CreditCard, Download, FileText, HandCoins, Landmark, LayoutDashboard, Upload, Users, Wallet } from 'lucide-react';
 import { FinanceProvider, useFinance } from './store/FinanceContext';
 import { ImportModal } from './components/ImportModal';
 import { TransactionLedger } from './components/TransactionLedger';
@@ -12,12 +12,13 @@ import { Block5Behavior } from './components/blocks/Block5Behavior';
 import { Block6Budgets } from './components/blocks/Block6Budgets';
 import { getAccountingMonth } from './utils/analytics';
 import { formatBRL, formatDate, formatMonth } from './utils/formatters';
-import type { CategoryRule, Debt, Member, Receivable } from './types';
+import type { CategoryRule, Debt, Member, MonthlyIncome, Receivable } from './types';
 
-type ModuleId = 'dashboard' | 'transacoes' | 'membros' | 'cobrancas' | 'emprestimos' | 'dividas' | 'importacao';
+type ModuleId = 'dashboard' | 'receitas' | 'transacoes' | 'membros' | 'cobrancas' | 'emprestimos' | 'dividas' | 'importacao';
 
 const modules: Array<{ id: ModuleId; label: string; icon: ReactNode }> = [
   { id: 'dashboard', label: 'Painel', icon: <LayoutDashboard size={18} /> },
+  { id: 'receitas', label: 'Receitas', icon: <Wallet size={18} /> },
   { id: 'transacoes', label: 'Transacoes', icon: <CreditCard size={18} /> },
   { id: 'membros', label: 'Membros', icon: <Users size={18} /> },
   { id: 'cobrancas', label: 'Divisoes e cobrancas', icon: <HandCoins size={18} /> },
@@ -28,6 +29,7 @@ const modules: Array<{ id: ModuleId; label: string; icon: ReactNode }> = [
 
 const moduleDescriptions: Record<ModuleId, string> = {
   dashboard: 'Resumo do mes, fatura, categorias e evolucao dos gastos.',
+  receitas: 'Cadastre e acompanhe a renda mensal usada nos dashboards.',
   transacoes: 'Revise, categorize e organize os lancamentos da fatura.',
   membros: 'Cadastre as pessoas usadas em divisoes, cobrancas e emprestimos.',
   cobrancas: 'Acompanhe o que outras pessoas precisam te pagar no cartao.',
@@ -39,12 +41,12 @@ const moduleDescriptions: Record<ModuleId, string> = {
 const numberOf = (value: string) => Number(value.replace(',', '.')) || 0;
 
 function FinanceApp() {
-  const { transactions, clearAllData, exportData, markPastInvoicesPaid } = useFinance();
+  const { transactions, monthlyIncomes, clearAllData, exportData } = useFinance();
   const [activeModule, setActiveModule] = useState<ModuleId>('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
   const [compareMonth, setCompareMonth] = useState('');
   const [showImport, setShowImport] = useState(false);
-  const months = useMemo(() => Array.from(new Set(transactions.map(item => getAccountingMonth(item)))).sort().reverse(), [transactions]);
+  const months = useMemo(() => Array.from(new Set([...transactions.map(item => getAccountingMonth(item)), ...monthlyIncomes.map(item => item.month)])).sort().reverse(), [monthlyIncomes, transactions]);
   const activeLabel = modules.find(item => item.id === activeModule)?.label || 'Painel';
   const chronologicalMonths = useMemo(() => [...months].reverse(), [months]);
   const selectedIndex = chronologicalMonths.indexOf(selectedMonth);
@@ -79,7 +81,7 @@ function FinanceApp() {
             <p>{moduleDescriptions[activeModule]}</p>
           </div>
           <div className="topbar-actions">
-            {activeModule === 'dashboard' || activeModule === 'transacoes' ? (
+            {activeModule === 'dashboard' || activeModule === 'transacoes' || activeModule === 'receitas' ? (
               <div className="invoice-nav">
                 <button className="icon-button" disabled={!previousMonth} onClick={() => setSelectedMonth(previousMonth)} title="Fatura anterior"><ChevronLeft size={18} /></button>
                 <select value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)}>
@@ -95,15 +97,14 @@ function FinanceApp() {
                 {months.map(month => <option key={month} value={month}>{formatMonth(month)}</option>)}
               </select>
             ) : null}
-            {activeModule === 'dashboard' ? <button className="secondary-button" onClick={() => markPastInvoicesPaid(new Date().toISOString().substring(0, 7))}>Quitar faturas antigas</button> : null}
             <button className="icon-button" onClick={() => window.print()} title="Exportar relatorio em PDF"><FileText size={18} /></button>
             <button className="icon-button" onClick={exportData} title="Exportar dados em JSON"><Download size={18} /></button>
-            <button className="icon-button danger" onClick={clearAllData} title="Limpar dados locais">×</button>
+            <button className="icon-button danger" onClick={clearAllData} title="Limpar dados locais">x</button>
           </div>
         </header>
 
         <main className="page-content">
-          {!transactions.length ? (
+          {!transactions.length && (activeModule === 'dashboard' || activeModule === 'transacoes') ? (
             <section className="empty-hero">
               <span>Comece importando CSV ou OFX na tela de importacao.</span>
               <button className="primary-button" onClick={() => setActiveModule('importacao')}><Upload size={16} /> Ir para importacao</button>
@@ -111,6 +112,7 @@ function FinanceApp() {
           ) : null}
 
           {activeModule === 'dashboard' ? <DashboardPage selectedMonth={selectedMonth} compareMonth={compareMonth} /> : null}
+          {activeModule === 'receitas' ? <IncomePage key={selectedMonth || 'todos'} selectedMonth={selectedMonth} /> : null}
           {activeModule === 'transacoes' ? <TransactionsPage selectedMonth={selectedMonth} /> : null}
           {activeModule === 'membros' ? <MembersPage /> : null}
           {activeModule === 'cobrancas' ? <ChargesPage /> : null}
@@ -134,6 +136,133 @@ function DashboardPage({ selectedMonth, compareMonth }: { selectedMonth: string;
       <Section title="Planejamento futuro"><Block6Budgets selectedMonth={selectedMonth} /></Section>
       <Section title="Comportamento de consumo"><Block5Behavior selectedMonth={selectedMonth} /></Section>
     </>
+  );
+}
+
+function IncomePage({ selectedMonth }: { selectedMonth: string }) {
+  const { transactions, monthlyIncomes, paidInvoiceMonths, addIncome, setMonthlyIncomes, setPaidInvoiceMonths, markPastInvoicesPaid, equalizePastInvoiceIncomes } = useFinance();
+  const currentIncome = monthlyIncomes.find(item => item.month === selectedMonth);
+  const [month, setMonth] = useState(selectedMonth || new Date().toISOString().substring(0, 7));
+  const [amount, setAmount] = useState(currentIncome ? String(currentIncome.amount) : '');
+  const [isRecurring, setIsRecurring] = useState(currentIncome?.isRecurring || false);
+  const [editingMonth, setEditingMonth] = useState('');
+
+  const sortedIncomes = useMemo(() => [...monthlyIncomes].sort((a, b) => b.month.localeCompare(a.month)), [monthlyIncomes]);
+  const totalIncome = sortedIncomes.reduce((sum, item) => sum + item.amount, 0);
+  const selectedInvoiceExpense = transactions
+    .filter(item => item.type === 'expense' && getAccountingMonth(item) === selectedMonth)
+    .reduce((sum, item) => sum + item.amount, 0);
+  const selectedInvoicePaid = Boolean(selectedMonth && paidInvoiceMonths.includes(selectedMonth));
+
+  const resetForm = () => {
+    setMonth(selectedMonth || new Date().toISOString().substring(0, 7));
+    setAmount('');
+    setIsRecurring(false);
+    setEditingMonth('');
+  };
+
+  const saveIncome = (event: FormEvent) => {
+    event.preventDefault();
+    const cleanAmount = numberOf(amount);
+    if (!month || cleanAmount <= 0) return;
+    if (editingMonth && editingMonth !== month) {
+      setMonthlyIncomes(previous => previous.filter(item => item.month !== editingMonth));
+    }
+    addIncome({ month, amount: cleanAmount, isRecurring });
+    resetForm();
+  };
+
+  const editIncome = (income: MonthlyIncome) => {
+    setEditingMonth(income.month);
+    setMonth(income.month);
+    setAmount(String(income.amount));
+    setIsRecurring(income.isRecurring);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const deleteIncome = (incomeMonth: string) => {
+    setMonthlyIncomes(previous => previous.filter(item => item.month !== incomeMonth));
+    if (editingMonth === incomeMonth) resetForm();
+  };
+
+  const markSelectedInvoicePaid = () => {
+    if (!selectedMonth) return;
+    setPaidInvoiceMonths(previous => Array.from(new Set([...previous, selectedMonth])).sort());
+  };
+
+  const sourceLabel = (income: MonthlyIncome) => {
+    if (income.source === 'adjustment') return 'Ajuste historico';
+    if (income.source === 'legacy') return 'Migrada do sistema antigo';
+    if (income.source === 'imported') return 'Importada';
+    return 'Manual';
+  };
+
+  return (
+    <div className="section-grid">
+      <div className="chart-card">
+        <h3>{editingMonth ? 'Editar receita' : 'Nova receita'}</h3>
+        <form className="form-grid" onSubmit={saveIncome}>
+          <label>Mes<input type="month" required value={month} onChange={event => setMonth(event.target.value)} /></label>
+          <label>Valor recebido<input type="number" step="0.01" required value={amount} onChange={event => setAmount(event.target.value)} placeholder="Ex: 3500,00" /></label>
+          <label className="checkbox-line full">
+            <input type="checkbox" checked={isRecurring} onChange={event => setIsRecurring(event.target.checked)} />
+            Receita recorrente
+          </label>
+          <button className="primary-button full" type="submit">{editingMonth ? 'Atualizar receita' : 'Salvar receita'}</button>
+          {editingMonth ? <button className="secondary-button full" type="button" onClick={resetForm}>Cancelar edicao</button> : null}
+        </form>
+      </div>
+
+      <div className="chart-card">
+        <h3>Resumo registrado</h3>
+        <div className="kpi-grid compact">
+          <div className="kpi-card"><span>Meses com receita</span><strong>{sortedIncomes.length}</strong><small className="good">Registros salvos</small></div>
+          <div className="kpi-card"><span>Total cadastrado</span><strong>{formatBRL(totalIncome)}</strong><small className="good">Soma historica</small></div>
+        </div>
+      </div>
+
+      <div className="chart-card wide">
+        <h3>Status da fatura</h3>
+        <div className="invoice-balance-panel">
+          <div>
+            <strong>{selectedMonth ? formatMonth(selectedMonth) : 'Todo periodo'}</strong>
+            <span>Fatura selecionada</span>
+          </div>
+          <div>
+            <strong>{formatBRL(selectedInvoiceExpense)}</strong>
+            <span>Valor da fatura</span>
+          </div>
+          <div>
+            <strong className={selectedInvoicePaid ? 'good-text' : selectedInvoiceExpense > 0 ? 'bad-text' : ''}>{selectedInvoicePaid ? 'Quitada' : selectedInvoiceExpense > 0 ? 'Em aberto' : 'Sem fatura'}</strong>
+            <span>Marcacao nao altera receita</span>
+          </div>
+        </div>
+        <div className="inline-actions">
+          <button className="secondary-button" type="button" disabled={!selectedMonth || !selectedInvoiceExpense || selectedInvoicePaid} onClick={markSelectedInvoicePaid}>Marcar fatura selecionada como quitada</button>
+          <button className="secondary-button" type="button" onClick={() => markPastInvoicesPaid(new Date().toISOString().substring(0, 7))}>Quitar faturas antigas</button>
+          <button className="primary-button" type="button" onClick={() => equalizePastInvoiceIncomes(new Date().toISOString().substring(0, 7))}>Igualar receitas as faturas antigas</button>
+        </div>
+      </div>
+
+      <div className="table-card wide">
+        <h3>Receitas cadastradas</h3>
+        <div className="simple-list">
+          {sortedIncomes.length ? sortedIncomes.map(income => (
+            <div key={income.month} className="list-row">
+              <div>
+                <strong>{formatMonth(income.month)}</strong>
+                <small>{income.isRecurring ? 'Recorrente' : 'Lancamento mensal'} - {sourceLabel(income)}</small>
+              </div>
+              <strong className="good-text">{formatBRL(income.amount)}</strong>
+              <div className="row-actions">
+                <button className="secondary-button" type="button" onClick={() => editIncome(income)}>Editar</button>
+                <button className="icon-button danger" type="button" onClick={() => deleteIncome(income.month)}>x</button>
+              </div>
+            </div>
+          )) : <div className="empty-state">Nenhuma receita cadastrada ainda.</div>}
+        </div>
+      </div>
+    </div>
   );
 }
 

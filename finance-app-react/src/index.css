@@ -188,6 +188,12 @@ select, input {
   border-color: #26344d;
 }
 
+.secondary-button:disabled,
+.icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .icon-button {
   width: 38px;
   padding: 0;
@@ -195,6 +201,13 @@ select, input {
 
 .icon-button.danger {
   color: #dc2626;
+}
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .page-content {
@@ -978,18 +991,29 @@ select, input {
   stroke: #26344d;
 }
 
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-tooltip-wrapper .recharts-default-tooltip,
 .recharts-default-tooltip {
   color: #e5edf7 !important;
   background: #0b1220 !important;
   border: 1px solid #26344d !important;
   border-radius: 8px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35) !important;
 }
 
+.recharts-tooltip-wrapper .recharts-default-tooltip *,
 .recharts-tooltip-label,
 .recharts-tooltip-item,
 .recharts-tooltip-item-name,
 .recharts-tooltip-item-value {
   color: #e5edf7 !important;
+}
+
+.recharts-tooltip-cursor {
+  stroke: #64748b !important;
 }
 
 @media (max-width: 900px) {

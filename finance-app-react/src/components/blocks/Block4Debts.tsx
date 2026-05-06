@@ -124,7 +124,7 @@ export function Block4Debts() {
   }, [rows]);
 
   const payoffDebt = rows.filter(item => item.type === 'a_pagar' && item.remaining > 0).sort((a, b) => b.remaining - a.remaining)[0];
-  const payoffRows = payoffDebt ? getDebtPayoffRows({ ...payoffDebt, totalAmount: payoffDebt.remaining, paidAmount: 0 }, extraPayment) : [];
+  const payoffRows = payoffDebt ? getDebtPayoffRows(payoffDebt, extraPayment, transactions) : [];
   const debtByType = [
     { name: 'A pagar', value: totals.payable },
     { name: 'A receber', value: totals.receivable },

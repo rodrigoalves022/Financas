@@ -30,7 +30,7 @@ export const expenseTransactions = (transactions: Transaction[]) => {
 export const getMonthlySummaries = (transactions: Transaction[], incomes: MonthlyIncome[]): MonthlySummary[] => {
   const months = new Set<string>();
   transactions.forEach(item => months.add(monthOf(item)));
-  const currentMonth = new Date().toISOString().substring(0, 7);
+  incomes.forEach(item => months.add(item.month));
 
   return Array.from(months).sort().map(month => {
     const expense = transactions
@@ -39,7 +39,7 @@ export const getMonthlySummaries = (transactions: Transaction[], incomes: Monthl
     const registeredIncome = incomes
       .filter(item => item.month === month)
       .reduce((sum, item) => sum + item.amount, 0);
-    const income = month < currentMonth ? Math.min(registeredIncome, expense) : registeredIncome;
+    const income = registeredIncome;
     return { month, income, expense, balance: income - expense };
   });
 };
@@ -88,10 +88,14 @@ export const getDailyHeatmap = (transactions: Transaction[], selectedMonth: stri
     groups.set(day, (groups.get(day) || 0) + item.amount);
   });
   const max = Math.max(...Array.from(groups.values()), 1);
+  // Use o maior entre os dias do mês da fatura e os dias reais das transações
+  // para não perder compras feitas nos dias 29-31 do mês anterior
   const daysInMonth = selectedMonth
     ? new Date(Number(selectedMonth.substring(0, 4)), Number(selectedMonth.substring(5, 7)), 0).getDate()
     : 31;
-  return Array.from({ length: daysInMonth }, (_, index) => {
+  const maxRealDay = groups.size > 0 ? Math.max(...Array.from(groups.keys())) : 0;
+  const totalDays = Math.max(daysInMonth, maxRealDay);
+  return Array.from({ length: totalDays }, (_, index) => {
     const day = index + 1;
     const total = groups.get(day) || 0;
     return { day, total, intensity: total / max };
@@ -162,37 +166,10 @@ export const getCategoryVolatility = (transactions: Transaction[], categories: C
   }).filter(item => item.average > 0).sort((a, b) => b.volatility - a.volatility);
 };
 
-export const getMonthProjection = (transactions: Transaction[], incomes: MonthlyIncome[], selectedMonth: string) => {
-  const month = selectedMonth || new Date().toISOString().substring(0, 7);
-  const scoped = expenseTransactions(filterByMonth(transactions, month));
-  const expenseSoFar = scoped.reduce((sum, item) => sum + item.amount, 0);
-  const income = incomes.filter(item => item.month === month).reduce((sum, item) => sum + item.amount, 0);
-  const today = new Date();
-  const isCurrentMonth = month === today.toISOString().substring(0, 7);
-  const daysInMonth = new Date(Number(month.substring(0, 4)), Number(month.substring(5, 7)), 0).getDate();
-  const elapsedDays = isCurrentMonth ? today.getDate() : daysInMonth;
-  const projectedExpense = elapsedDays ? (expenseSoFar / elapsedDays) * daysInMonth : expenseSoFar;
-  return { month, income, expenseSoFar, projectedExpense, projectedBalance: income - projectedExpense, daysInMonth, elapsedDays };
-};
+// getMonthProjection removida: fatura fechada tem valor definitivo;
+// projeção linear não faz sentido no modelo de fatura mensal.
 
-export const getFinancialHealthScore = (transactions: Transaction[], incomes: MonthlyIncome[], debts: Debt[], selectedMonth: string) => {
-  const summaries = getMonthlySummaries(transactions, incomes);
-  const scoped = selectedMonth ? summaries.find(item => item.month === selectedMonth) : summaries.at(-1);
-  const previous = scoped ? summaries.filter(item => item.month < scoped.month).at(-1) : undefined;
-  const debtPayments = debts.filter(item => item.type === 'a_pagar').reduce((sum, item) => sum + item.monthlyPayment, 0);
-  const income = scoped?.income || 0;
-  const expenseRatio = income ? (scoped?.expense || 0) / income : 1;
-  const savingsRate = income ? (scoped?.balance || 0) / income : 0;
-  const growth = previous?.expense ? ((scoped?.expense || 0) - previous.expense) / previous.expense : 0;
-  const highInterest = debts.some(item => item.type === 'a_pagar' && item.interestRate >= 3);
-  let score = 100;
-  score -= Math.max(0, expenseRatio - 0.7) * 80;
-  score -= Math.max(0, growth) * 25;
-  score -= income ? Math.min(25, (debtPayments / income) * 80) : 15;
-  score += Math.max(0, Math.min(15, savingsRate * 50));
-  if (highInterest) score -= 12;
-  return Math.max(0, Math.min(100, Math.round(score)));
-};
+// getFinancialHealthScore removida: score financeiro não é objetivo do sistema.
 
 export const applyAlias = (description: string, aliases: Alias[]) => {
   const found = aliases.find(item => normalizeMerchant(item.original) === normalizeMerchant(description));
@@ -252,10 +229,12 @@ export const getDebtBalance = (debt: Debt, transactions: Transaction[]) => {
   return Math.max(0, debt.totalAmount - debt.paidAmount - linkedPaid);
 };
 
-export const getDebtPayoffRows = (debt: Debt, extraPayment: number) => {
+export const getDebtPayoffRows = (debt: Debt, extraPayment: number, transactions: Transaction[] = []) => {
   const rows: { month: number; base: number; extra: number }[] = [];
-  let baseBalance = debt.totalAmount - debt.paidAmount;
-  let extraBalance = baseBalance;
+  // Usa o saldo real descontando pagamentos já vinculados via fatura
+  const realBalance = getDebtBalance(debt, transactions);
+  let baseBalance = realBalance;
+  let extraBalance = realBalance;
   const rate = debt.interestRate / 100;
   for (let month = 0; month <= 36 && (baseBalance > 0 || extraBalance > 0); month += 1) {
     rows.push({ month, base: Math.max(0, baseBalance), extra: Math.max(0, extraBalance) });
@@ -271,8 +250,10 @@ export const getInsights = (transactions: Transaction[], categories: Category[],
   const averageTicket = expenses.length ? total / expenses.length : 0;
   const weekdayAverages = getWeekdayAverages(transactions);
   const expensiveWeekday = weekdayAverages.find(item => item.average > averageTicket * 2);
-  const averageMonthly = summaries.length ? summaries.reduce((sum, item) => sum + item.expense, 0) / summaries.length : 0;
-  const outlierMonth = summaries.find(item => averageMonthly && item.expense > averageMonthly * 1.3);
+  // Filtra apenas meses com despesa real para evitar média distorcida por meses sem dados
+  const realSummaries = summaries.filter(item => item.expense > 0);
+  const averageMonthly = realSummaries.length ? realSummaries.reduce((sum, item) => sum + item.expense, 0) / realSummaries.length : 0;
+  const outlierMonth = realSummaries.find(item => averageMonthly && item.expense > averageMonthly * 1.3);
   const categoryTotals = getCategoryTotals(transactions, categories);
   const highestTicket = [...categoryTotals].sort((a, b) => b.averageTicket - a.averageTicket)[0];
 

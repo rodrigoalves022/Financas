@@ -14,6 +14,7 @@ interface FinanceState {
   members: Member[];
   receivables: Receivable[];
   monthlyIncomes: MonthlyIncome[];
+  paidInvoiceMonths: string[];
   categories: Category[];
   categoryRules: CategoryRule[];
   aliases: Alias[];
@@ -28,11 +29,13 @@ interface FinanceContextType extends FinanceState {
   setMembers: React.Dispatch<React.SetStateAction<Member[]>>;
   setReceivables: React.Dispatch<React.SetStateAction<Receivable[]>>;
   setMonthlyIncomes: React.Dispatch<React.SetStateAction<MonthlyIncome[]>>;
+  setPaidInvoiceMonths: React.Dispatch<React.SetStateAction<string[]>>;
   setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
   setCategoryRules: React.Dispatch<React.SetStateAction<CategoryRule[]>>;
   setAliases: React.Dispatch<React.SetStateAction<Alias[]>>;
   addIncome: (income: MonthlyIncome) => void;
   markPastInvoicesPaid: (currentMonth: string) => void;
+  equalizePastInvoiceIncomes: (currentMonth: string) => void;
   addDebt: (debt: Debt) => void;
   addBudget: (budget: Budget) => void;
   addMember: (member: Member) => void;
@@ -137,6 +140,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   });
   const [receivables, setReceivables] = useState<Receivable[]>(() => load('finance_receivables_v2', []));
   const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>(() => load('finance_incomes_v2', []));
+  const [paidInvoiceMonths, setPaidInvoiceMonths] = useState<string[]>(() => load('finance_paid_invoice_months_v1', []));
   const [categories, setCategories] = useState<Category[]>(() => load('finance_categories_v2', DEFAULT_CATEGORIES));
   const [categoryRules, setCategoryRules] = useState<CategoryRule[]>(() => load('finance_category_rules_v2', []));
   const [aliases, setAliases] = useState<Alias[]>(() => load('finance_aliases_v2', []));
@@ -150,6 +154,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => localStorage.setItem('finance_members_v2', JSON.stringify(members)), [members]);
   useEffect(() => localStorage.setItem('finance_receivables_v2', JSON.stringify(receivables)), [receivables]);
   useEffect(() => localStorage.setItem('finance_incomes_v2', JSON.stringify(monthlyIncomes)), [monthlyIncomes]);
+  useEffect(() => localStorage.setItem('finance_paid_invoice_months_v1', JSON.stringify(paidInvoiceMonths)), [paidInvoiceMonths]);
   useEffect(() => localStorage.setItem('finance_categories_v2', JSON.stringify(categories)), [categories]);
   useEffect(() => localStorage.setItem('finance_category_rules_v2', JSON.stringify(categoryRules)), [categoryRules]);
   useEffect(() => localStorage.setItem('finance_aliases_v2', JSON.stringify(aliases)), [aliases]);
@@ -190,6 +195,20 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     window.setTimeout(() => {
       if (!cancelled) setTransactions(previous => fixProjectionInstallmentDates(previous));
       localStorage.setItem('finance_installment_dates_fixed_v1', 'true');
+    }, 0);
+    return () => { cancelled = true; };
+  }, [migrationReady]);
+
+  useEffect(() => {
+    if (!migrationReady || localStorage.getItem('finance_income_cleanup_v2')) return;
+    let cancelled = false;
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    window.setTimeout(() => {
+      if (cancelled) return;
+      setMonthlyIncomes(previous => previous
+        .filter(item => item.month >= currentMonth || item.source === 'manual')
+        .sort((a, b) => a.month.localeCompare(b.month)));
+      localStorage.setItem('finance_income_cleanup_v2', 'true');
     }, 0);
     return () => { cancelled = true; };
   }, [migrationReady]);
@@ -253,7 +272,8 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
           const byMonth = new Map(previous.map(item => [item.month, item]));
           data.monthlyIncomes.forEach(item => {
             const current = byMonth.get(item.month);
-            byMonth.set(item.month, current ? { ...current, amount: current.amount + item.amount } : item);
+            const migrated = { ...item, source: 'legacy' as const };
+            byMonth.set(item.month, current ? { ...current, amount: current.amount + item.amount } : migrated);
           });
           return Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month));
         });
@@ -356,10 +376,20 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [categories, processedFiles, migrationReady]);
 
   const addIncome = (income: MonthlyIncome) => {
-    setMonthlyIncomes(previous => [...previous.filter(item => item.month !== income.month), income]);
+    setMonthlyIncomes(previous => [...previous.filter(item => item.month !== income.month), { ...income, source: income.source || 'manual' }]);
   };
 
   const markPastInvoicesPaid = (currentMonth: string) => {
+    const months = new Set<string>();
+    transactions.forEach(transaction => {
+      if (transaction.type !== 'expense') return;
+      const month = getAccountingMonth(transaction);
+      if (month < currentMonth) months.add(month);
+    });
+    setPaidInvoiceMonths(previous => Array.from(new Set([...previous, ...months])).sort());
+  };
+
+  const equalizePastInvoiceIncomes = (currentMonth: string) => {
     const expenseByMonth = new Map<string, number>();
     transactions.forEach(transaction => {
       if (transaction.type !== 'expense') return;
@@ -367,13 +397,15 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
       if (month >= currentMonth) return;
       expenseByMonth.set(month, (expenseByMonth.get(month) || 0) + transaction.amount);
     });
+
     setMonthlyIncomes(previous => {
       const byMonth = new Map(previous.map(item => [item.month, item]));
       expenseByMonth.forEach((amount, month) => {
-        byMonth.set(month, { month, amount, isRecurring: false });
+        byMonth.set(month, { month, amount, isRecurring: false, source: 'adjustment' });
       });
       return Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month));
     });
+    setPaidInvoiceMonths(previous => Array.from(new Set([...previous, ...expenseByMonth.keys()])).sort());
   };
 
   const addDebt = (debt: Debt) => {
@@ -521,7 +553,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const exportData = () => {
-    const payload = { transactions, debts, budgets, members, receivables, monthlyIncomes, categories, categoryRules, aliases, exportedAt: new Date().toISOString() };
+    const payload = { transactions, debts, budgets, members, receivables, monthlyIncomes, paidInvoiceMonths, categories, categoryRules, aliases, exportedAt: new Date().toISOString() };
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
@@ -538,6 +570,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     setMembers([]);
     setReceivables([]);
     setMonthlyIncomes([]);
+    setPaidInvoiceMonths([]);
     setCategories(DEFAULT_CATEGORIES);
     setCategoryRules([]);
     setAliases([]);
@@ -545,6 +578,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     localStorage.removeItem('finance_category_rules_backfilled_v1');
     localStorage.removeItem('finance_installment_dates_fixed_v1');
     localStorage.removeItem('finance_legacy_migration_version');
+    localStorage.removeItem('finance_income_cleanup_v2');
   };
 
   return (
@@ -555,6 +589,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
       members,
       receivables,
       monthlyIncomes,
+      paidInvoiceMonths,
       categories,
       categoryRules,
       aliases,
@@ -566,11 +601,13 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
       setMembers,
       setReceivables,
       setMonthlyIncomes,
+      setPaidInvoiceMonths,
       setCategories,
       setCategoryRules,
       setAliases,
       addIncome,
       markPastInvoicesPaid,
+      equalizePastInvoiceIncomes,
       addDebt,
       addBudget,
       addMember,

@@ -77,6 +77,7 @@ export interface MonthlyIncome {
   month: string;
   amount: number;
   isRecurring: boolean;
+  source?: 'manual' | 'legacy' | 'imported' | 'adjustment';
 }
 
 export interface Budget {

@@ -7,6 +7,7 @@ export const AXIS_PROPS = {
 export const GRID_COLOR = '#26344d';
 
 export const TOOLTIP_PROPS = {
+  cursor: false,
   contentStyle: {
     backgroundColor: '#0b1220',
     border: '1px solid #334155',

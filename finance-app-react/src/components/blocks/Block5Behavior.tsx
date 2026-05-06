@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useFinance } from '../../store/FinanceContext';
 import { expenseTransactions, filterByMonth, getCategoryTotals, getCategoryVolatility, getDailyHeatmap, getInsights, getMonthlySummaries, getRecurringMerchants, getTransactionAnomalies, getWeekdayAverages } from '../../utils/analytics';
@@ -8,7 +7,6 @@ import { DataTable, type Column } from '../ui/DataTable';
 
 export function Block5Behavior({ selectedMonth }: { selectedMonth: string }) {
   const { transactions, categories, aliases, monthlyIncomes } = useFinance();
-  const [cutAmount, setCutAmount] = useState(300);
   const scopedTransactions = filterByMonth(transactions, selectedMonth);
   const expenses = expenseTransactions(scopedTransactions);
   const summaries = getMonthlySummaries(transactions, monthlyIncomes);
@@ -110,19 +108,7 @@ export function Block5Behavior({ selectedMonth }: { selectedMonth: string }) {
         </ResponsiveContainer>
       </div>
 
-      <div className="chart-card wide">
-        <div className="chart-title-row">
-          <h3>Simulador e se</h3>
-          <label className="slider-label">
-            Corte mensal {formatBRL(cutAmount)}
-            <input type="range" min="0" max="2000" step="50" value={cutAmount} onChange={event => setCutAmount(Number(event.target.value))} />
-          </label>
-        </div>
-        <div className="simulator-grid">
-          <Kpi label="Impacto em 6 meses" value={formatBRL(cutAmount * 6)} sub="saldo acumulado" />
-          <Kpi label="Impacto em 12 meses" value={formatBRL(cutAmount * 12)} sub="saldo acumulado" />
-        </div>
-      </div>
+
 
       <div className="table-card wide">
         <h3>Recorrencias detectadas</h3>
