@@ -1,14 +1,23 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { X } from 'lucide-react';
+import { X, DollarSign, CreditCard, Target, Tag } from 'lucide-react';
 import { useFinance } from '../store/FinanceContext';
 import type { Category, Debt } from '../types';
 
 const numberOf = (value: string) => Number(value.replace(',', '.')) || 0;
 
+const tabs = [
+  { id: 'income', label: 'Receita', icon: DollarSign },
+  { id: 'debt', label: 'Divida', icon: CreditCard },
+  { id: 'budget', label: 'Meta', icon: Target },
+  { id: 'category', label: 'Categoria', icon: Tag },
+] as const;
+
+type Mode = typeof tabs[number]['id'];
+
 export function ManualEntryModal({ onClose }: { onClose: () => void }) {
   const { addIncome, addDebt, addBudget, setCategories, categories } = useFinance();
-  const [mode, setMode] = useState<'income' | 'debt' | 'budget' | 'category'>('income');
+  const [mode, setMode] = useState<Mode>('income');
 
   const [incomeMonth, setIncomeMonth] = useState(new Date().toISOString().substring(0, 7));
   const [incomeAmount, setIncomeAmount] = useState('');
@@ -66,76 +75,205 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
         <header className="modal-header">
           <div>
             <h2>Lancamento manual</h2>
-            <p>Receitas, dividas e categorias customizadas.</p>
+            <p>Receitas, dividas, metas e categorias</p>
           </div>
-          <button type="button" className="icon-button" onClick={onClose}><X size={18} /></button>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Fechar">
+            <X size={18} />
+          </button>
         </header>
 
-        <div className="segmented">
-          <button className={mode === 'income' ? 'active' : ''} onClick={() => setMode('income')}>Receita</button>
-          <button className={mode === 'debt' ? 'active' : ''} onClick={() => setMode('debt')}>Divida</button>
-          <button className={mode === 'budget' ? 'active' : ''} onClick={() => setMode('budget')}>Meta</button>
-          <button className={mode === 'category' ? 'active' : ''} onClick={() => setMode('category')}>Categoria</button>
-        </div>
+        <nav className="segmented">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={mode === tab.id ? 'active' : ''}
+                onClick={() => setMode(tab.id)}
+              >
+                <Icon size={14} style={{ marginRight: 6, opacity: 0.7 }} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
 
-        {mode === 'income' ? (
+        {mode === 'income' && (
           <form className="form-grid" onSubmit={saveIncome}>
-            <label>Mes<input type="month" required value={incomeMonth} onChange={event => setIncomeMonth(event.target.value)} /></label>
-            <label>Valor<input type="number" step="0.01" required value={incomeAmount} onChange={event => setIncomeAmount(event.target.value)} /></label>
-            <button className="primary-button full" type="submit">Salvar receita</button>
+            <label>
+              Mes
+              <input 
+                type="month" 
+                required 
+                value={incomeMonth} 
+                onChange={e => setIncomeMonth(e.target.value)} 
+              />
+            </label>
+            <label>
+              Valor (R$)
+              <input 
+                type="number" 
+                step="0.01" 
+                required 
+                placeholder="0,00"
+                value={incomeAmount} 
+                onChange={e => setIncomeAmount(e.target.value)} 
+              />
+            </label>
+            <button className="primary-button full" type="submit">
+              Salvar receita
+            </button>
           </form>
-        ) : null}
+        )}
 
-        {mode === 'debt' ? (
+        {mode === 'debt' && (
           <form className="form-grid" onSubmit={saveDebt}>
-            <label className="full">Tipo
-              <select required value={debtType} onChange={event => setDebtType(event.target.value as 'a_receber' | 'a_pagar')}>
+            <label className="full">
+              Tipo
+              <select 
+                required 
+                value={debtType} 
+                onChange={e => setDebtType(e.target.value as 'a_receber' | 'a_pagar')}
+              >
                 <option value="a_receber">A receber - alguem me deve</option>
                 <option value="a_pagar">A pagar - eu devo</option>
               </select>
             </label>
-            <label>Origem
-              <select value={origin} onChange={event => setOrigin(event.target.value as Debt['origin'])}>
+            <label>
+              Origem
+              <select value={origin} onChange={e => setOrigin(e.target.value as Debt['origin'])}>
                 <option value="manual">Manual</option>
                 <option value="cartao">Cartao</option>
                 <option value="emprestimo">Emprestimo</option>
                 <option value="outros">Outros</option>
               </select>
             </label>
-            <label>Pessoa/entidade<input required value={counterparty} onChange={event => setCounterparty(event.target.value)} /></label>
-            <label>Valor total<input type="number" step="0.01" required value={totalAmount} onChange={event => setTotalAmount(event.target.value)} /></label>
-            <label>Valor pago<input type="number" step="0.01" value={paidAmount} onChange={event => setPaidAmount(event.target.value)} /></label>
-            <label>Parcela mensal<input type="number" step="0.01" value={monthlyPayment} onChange={event => setMonthlyPayment(event.target.value)} /></label>
-            <label>Juros mensal (%)<input type="number" step="0.01" value={interestRate} onChange={event => setInterestRate(event.target.value)} /></label>
-            <label>Data<input type="date" required value={startDate} onChange={event => setStartDate(event.target.value)} /></label>
-            <label className="full">Observacao<input value={note} onChange={event => setNote(event.target.value)} /></label>
-            <button className="primary-button full" type="submit">Salvar divida</button>
+            <label>
+              Pessoa/entidade
+              <input 
+                required 
+                placeholder="Nome do credor ou devedor"
+                value={counterparty} 
+                onChange={e => setCounterparty(e.target.value)} 
+              />
+            </label>
+            <label>
+              Valor total
+              <input 
+                type="number" 
+                step="0.01" 
+                required 
+                placeholder="0,00"
+                value={totalAmount} 
+                onChange={e => setTotalAmount(e.target.value)} 
+              />
+            </label>
+            <label>
+              Valor pago
+              <input 
+                type="number" 
+                step="0.01" 
+                placeholder="0,00"
+                value={paidAmount} 
+                onChange={e => setPaidAmount(e.target.value)} 
+              />
+            </label>
+            <label>
+              Parcela mensal
+              <input 
+                type="number" 
+                step="0.01" 
+                placeholder="0,00"
+                value={monthlyPayment} 
+                onChange={e => setMonthlyPayment(e.target.value)} 
+              />
+            </label>
+            <label>
+              Juros mensal (%)
+              <input 
+                type="number" 
+                step="0.01" 
+                placeholder="0"
+                value={interestRate} 
+                onChange={e => setInterestRate(e.target.value)} 
+              />
+            </label>
+            <label>
+              Data
+              <input 
+                type="date" 
+                required 
+                value={startDate} 
+                onChange={e => setStartDate(e.target.value)} 
+              />
+            </label>
+            <label className="full">
+              Observacao
+              <input 
+                placeholder="Detalhes opcionais"
+                value={note} 
+                onChange={e => setNote(e.target.value)} 
+              />
+            </label>
+            <button className="primary-button full" type="submit">
+              Salvar divida
+            </button>
           </form>
-        ) : null}
+        )}
 
-        {mode === 'budget' ? (
+        {mode === 'budget' && (
           <form className="form-grid" onSubmit={saveBudget}>
-            <label className="full">Categoria
-              <select required value={budgetCategoryId} onChange={event => setBudgetCategoryId(event.target.value)}>
-                {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+            <label className="full">
+              Categoria
+              <select 
+                required 
+                value={budgetCategoryId} 
+                onChange={e => setBudgetCategoryId(e.target.value)}
+              >
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
               </select>
             </label>
-            <label className="full">Teto mensal<input type="number" step="0.01" required value={budgetLimit} onChange={event => setBudgetLimit(event.target.value)} /></label>
-            <button className="primary-button full" type="submit">Salvar meta</button>
+            <label className="full">
+              Teto mensal (R$)
+              <input 
+                type="number" 
+                step="0.01" 
+                required 
+                placeholder="0,00"
+                value={budgetLimit} 
+                onChange={e => setBudgetLimit(e.target.value)} 
+              />
+            </label>
+            <button className="primary-button full" type="submit">
+              Salvar meta
+            </button>
           </form>
-        ) : null}
+        )}
 
-        {mode === 'category' ? (
+        {mode === 'category' && (
           <form className="form-grid" onSubmit={saveCategory}>
-            <label className="full">Nome da categoria<input required value={categoryName} onChange={event => setCategoryName(event.target.value)} /></label>
-            <button className="primary-button full" type="submit">Criar categoria</button>
+            <label className="full">
+              Nome da categoria
+              <input 
+                required 
+                placeholder="Ex: Streaming, Farmacia, Pets..."
+                value={categoryName} 
+                onChange={e => setCategoryName(e.target.value)} 
+              />
+            </label>
+            <button className="primary-button full" type="submit">
+              Criar categoria
+            </button>
           </form>
-        ) : null}
+        )}
       </div>
     </div>
   );
