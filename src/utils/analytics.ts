@@ -88,13 +88,10 @@ export const getDailyHeatmap = (transactions: Transaction[], selectedMonth: stri
     groups.set(day, (groups.get(day) || 0) + item.amount);
   });
   const max = Math.max(...Array.from(groups.values()), 1);
-  // Use o maior entre os dias do mês da fatura e os dias reais das transações
-  // para não perder compras feitas nos dias 29-31 do mês anterior
-  const daysInMonth = selectedMonth
-    ? new Date(Number(selectedMonth.substring(0, 4)), Number(selectedMonth.substring(5, 7)), 0).getDate()
-    : 31;
-  const maxRealDay = groups.size > 0 ? Math.max(...Array.from(groups.keys())) : 0;
-  const totalDays = Math.max(daysInMonth, maxRealDay);
+  const realDays = scoped
+    .map(item => Number(item.date.substring(8, 10)))
+    .filter(day => Number.isFinite(day) && day > 0);
+  const totalDays = realDays.length > 0 ? Math.max(...realDays) : 31;
   return Array.from({ length: totalDays }, (_, index) => {
     const day = index + 1;
     const total = groups.get(day) || 0;

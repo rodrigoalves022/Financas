@@ -61,7 +61,7 @@ export function Block1Overview({ selectedMonth }: { selectedMonth: string }) {
         <Kpi label="Dívidas cadastradas" value={formatBRL(debtTotal)} tone={debtTotal > 0 ? 'warn' : 'good'} sub="Compromissos próprios" />
         <Kpi label="Saldo" value={formatBRL(balance)} tone={balance >= 0 ? 'good' : 'bad'} sub={balance >= 0 ? 'Positivo' : 'Em aberto'} />
         <Kpi label="Situação" value={paid ? 'Quitada' : balance < 0 ? 'Em aberto' : 'Sem gasto'} tone={paid ? 'good' : balance < 0 ? 'warn' : 'good'} sub="Status da fatura" />
-        <Kpi label="A receber de terceiros" value={formatBRL(pendingReceivables)} tone={pendingReceivables > 0 ? 'warn' : 'good'} sub="Cobranças pendentes" />
+        <Kpi label="Cobranças pendentes" value={formatBRL(pendingReceivables)} tone={pendingReceivables > 0 ? 'warn' : 'good'} sub="A receber de terceiros" />
         <Kpi label="Parcelas futuras" value={formatBRL(upcomingInstallments)} tone="warn" sub="Próximos 3 meses" />
       </div>
       <div className="chart-card wide">
