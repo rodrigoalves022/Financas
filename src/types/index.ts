@@ -74,10 +74,13 @@ export interface Debt {
 }
 
 export interface MonthlyIncome {
+  id?: string;
   month: string;
   amount: number;
   isRecurring: boolean;
   source?: 'manual' | 'legacy' | 'imported' | 'adjustment';
+  date?: string;
+  description?: string;
 }
 
 export interface Budget {

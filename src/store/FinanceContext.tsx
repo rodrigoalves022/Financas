@@ -73,6 +73,14 @@ const fileNameFromSignature = (value: string) => value.split('#')[0];
 
 const keywordKey = (value: string) => normalizeText(value);
 const defaultKeywordKeys = new Set(DEFAULT_CATEGORIES.flatMap(category => category.keywords.map(keywordKey)));
+const USER_CLEARED_DATA_KEY = 'finance_user_cleared_data_v1';
+const DELETED_DEBTS_KEY = 'finance_deleted_debt_ids_v1';
+const DELETED_RECEIVABLES_KEY = 'finance_deleted_receivable_ids_v1';
+
+const deletedIds = (key: string) => new Set(load<string[]>(key, []));
+const rememberDeletedId = (key: string, id: string) => {
+  localStorage.setItem(key, JSON.stringify(Array.from(new Set([...deletedIds(key), id]))));
+};
 
 const sourceMonthFromFile = (sourceFile?: string) => {
   const match = sourceFile?.match(/(20\d{2})[-_](0[1-9]|1[0-2])/);
@@ -233,6 +241,11 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     let cancelled = false;
     const importLegacy = async () => {
+      if (localStorage.getItem(USER_CLEARED_DATA_KEY)) {
+        setMigrationReady(true);
+        setAutoImportStatus('Importação automática pausada após limpeza manual');
+        return;
+      }
       try {
         const response = await fetch('/migration/legacy-data.json', { cache: 'no-store' });
         if (!response.ok) {
@@ -279,7 +292,8 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
         });
         setDebts(previous => {
           const ids = new Set(previous.map(item => item.id));
-          return [...data.debts.filter(item => !ids.has(item.id)), ...previous];
+          const removed = deletedIds(DELETED_DEBTS_KEY);
+          return [...data.debts.filter(item => !ids.has(item.id) && !removed.has(item.id)), ...previous];
         });
         if (data.budgets?.length) {
           setBudgets(previous => {
@@ -298,7 +312,8 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (data.receivables?.length) {
           setReceivables(previous => {
             const byId = new Map(previous.map(item => [item.id, item]));
-            data.receivables?.forEach(item => byId.set(item.id, item));
+            const removed = deletedIds(DELETED_RECEIVABLES_KEY);
+            data.receivables?.filter(item => !removed.has(item.id)).forEach(item => byId.set(item.id, item));
             return Array.from(byId.values());
           });
         }
@@ -331,6 +346,10 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   useEffect(() => {
     if (!migrationReady) return;
+    if (localStorage.getItem(USER_CLEARED_DATA_KEY)) {
+      const timer = window.setTimeout(() => setAutoImportStatus('Importação automática pausada após limpeza manual'), 0);
+      return () => window.clearTimeout(timer);
+    }
     let cancelled = false;
     const autoImport = async () => {
       try {
@@ -368,7 +387,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
           setAutoImportStatus(`${imported.length} transacoes importadas de ${importedFiles.length} arquivo(s)`);
         }
       } catch {
-        if (!cancelled) setAutoImportStatus('Importacao automatica indisponivel');
+        if (!cancelled) setAutoImportStatus('Importação automática indisponível');
       }
     };
     autoImport();
@@ -376,7 +395,9 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [categories, processedFiles, migrationReady]);
 
   const addIncome = (income: MonthlyIncome) => {
-    setMonthlyIncomes(previous => [...previous.filter(item => item.month !== income.month), { ...income, source: income.source || 'manual' }]);
+    const nextIncome = { ...income, id: income.id || crypto.randomUUID(), source: income.source || 'manual' };
+    const legacyKey = `${income.month}-${income.source || 'manual'}-${income.amount}-${income.description || ''}`;
+    setMonthlyIncomes(previous => [nextIncome, ...previous.filter(item => item.id !== nextIncome.id && `${item.month}-${item.source || 'manual'}-${item.amount}-${item.description || ''}` !== legacyKey)]);
   };
 
   const markPastInvoicesPaid = (currentMonth: string) => {
@@ -399,9 +420,16 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     });
 
     setMonthlyIncomes(previous => {
-      const byMonth = new Map(previous.map(item => [item.month, item]));
+      const byMonth = new Map(previous.filter(item => item.source !== 'adjustment').map(item => [item.id || `${item.month}-${item.source || 'manual'}-${item.amount}`, item]));
       expenseByMonth.forEach((amount, month) => {
-        byMonth.set(month, { month, amount, isRecurring: false, source: 'adjustment' });
+        byMonth.set(`adjustment-${month}`, {
+          id: `adjustment-${month}`,
+          month,
+          amount,
+          isRecurring: false,
+          source: 'adjustment',
+          description: 'Receita ajustada para quitar fatura antiga',
+        });
       });
       return Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month));
     });
@@ -492,8 +520,25 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     setCategories(previous => removeUserKeywords(previous, keywordsForRule(rule.keyword)));
   };
 
+  const removeMirroredReceivableDebt = (receivable: Receivable) => {
+    const member = members.find(item => item.id === receivable.memberId);
+    if (!member) return;
+    const origin: Debt['origin'] = receivable.source === 'emprestimo_pix' ? 'emprestimo' : 'cartao';
+    setDebts(previous => previous.filter(debt => {
+      if (debt.type !== 'a_receber' || debt.origin !== origin) return true;
+      if (normalizeText(debt.counterparty) !== normalizeText(member.name)) return true;
+      const sameAmount = Math.abs((debt.totalAmount - debt.paidAmount) - (receivable.amount - receivable.paidAmount)) < 0.01
+        || Math.abs(debt.totalAmount - receivable.amount) < 0.01;
+      const sameDescription = !debt.note || !receivable.description || normalizeText(debt.note) === normalizeText(receivable.description);
+      const shouldRemove = sameAmount && sameDescription;
+      if (shouldRemove) rememberDeletedId(DELETED_DEBTS_KEY, debt.id);
+      return !shouldRemove;
+    }));
+  };
+
   const addReceivable = (receivable: Receivable) => {
     if (members.some(member => member.id === receivable.memberId && member.isOwner)) return;
+    removeMirroredReceivableDebt(receivable);
     setReceivables(previous => [receivable, ...previous.filter(item => item.id !== receivable.id)]);
   };
 
@@ -509,6 +554,8 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     setReceivables(previous => {
       const removed = previous.find(item => item.id === receivableId);
       if (!removed) return previous;
+      rememberDeletedId(DELETED_RECEIVABLES_KEY, removed.id);
+      removeMirroredReceivableDebt(removed);
       const remaining = previous.filter(item => item.id !== receivableId);
       if (removed.source !== 'divisao' || !removed.transactionId) return remaining;
       const siblings = remaining.filter(item => item.transactionId === removed.transactionId && item.source === 'divisao' && item.status !== 'quitado');
@@ -564,6 +611,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const clearAllData = () => {
     if (!window.confirm('Apagar todos os dados locais?')) return;
+    localStorage.setItem(USER_CLEARED_DATA_KEY, new Date().toISOString());
     setTransactions([]);
     setDebts([]);
     setBudgets([]);
@@ -577,8 +625,8 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     setProcessedFiles([]);
     localStorage.removeItem('finance_category_rules_backfilled_v1');
     localStorage.removeItem('finance_installment_dates_fixed_v1');
-    localStorage.removeItem('finance_legacy_migration_version');
-    localStorage.removeItem('finance_income_cleanup_v2');
+    localStorage.setItem('finance_legacy_migration_version', 'user-cleared');
+    localStorage.setItem('finance_income_cleanup_v2', 'true');
   };
 
   return (

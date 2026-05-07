@@ -8,7 +8,7 @@ const numberOf = (value: string) => Number(value.replace(',', '.')) || 0;
 
 const tabs = [
   { id: 'income', label: 'Receita', icon: DollarSign },
-  { id: 'debt', label: 'Divida', icon: CreditCard },
+  { id: 'debt', label: 'Dívida', icon: CreditCard },
   { id: 'budget', label: 'Meta', icon: Target },
   { id: 'category', label: 'Categoria', icon: Tag },
 ] as const;
@@ -79,8 +79,8 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <header className="modal-header">
           <div>
-            <h2>Lancamento manual</h2>
-            <p>Receitas, dividas, metas e categorias</p>
+            <h2>Lançamento manual</h2>
+            <p>Receitas, dívidas, metas e categorias</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Fechar">
             <X size={18} />
@@ -107,7 +107,7 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
         {mode === 'income' && (
           <form className="form-grid" onSubmit={saveIncome}>
             <label>
-              Mes
+              Mês
               <input 
                 type="month" 
                 required 
@@ -127,7 +127,7 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
               />
             </label>
             <button className="primary-button full" type="submit">
-              Salvar receita
+              Adicionar entrada
             </button>
           </form>
         )}
@@ -141,7 +141,7 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
                 value={debtType} 
                 onChange={e => setDebtType(e.target.value as 'a_receber' | 'a_pagar')}
               >
-                <option value="a_receber">A receber - alguem me deve</option>
+                <option value="a_receber">A receber - alguém me deve</option>
                 <option value="a_pagar">A pagar - eu devo</option>
               </select>
             </label>
@@ -149,8 +149,8 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
               Origem
               <select value={origin} onChange={e => setOrigin(e.target.value as Debt['origin'])}>
                 <option value="manual">Manual</option>
-                <option value="cartao">Cartao</option>
-                <option value="emprestimo">Emprestimo</option>
+                <option value="cartao">Cartão</option>
+                <option value="emprestimo">Empréstimo</option>
                 <option value="outros">Outros</option>
               </select>
             </label>
@@ -214,7 +214,7 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
               />
             </label>
             <label className="full">
-              Observacao
+              Observação
               <input 
                 placeholder="Detalhes opcionais"
                 value={note} 
@@ -222,7 +222,7 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
               />
             </label>
             <button className="primary-button full" type="submit">
-              Salvar divida
+              Salvar dívida
             </button>
           </form>
         )}
@@ -264,7 +264,7 @@ export function ManualEntryModal({ onClose }: { onClose: () => void }) {
               Nome da categoria
               <input 
                 required 
-                placeholder="Ex: Streaming, Farmacia, Pets..."
+                placeholder="Ex: Streaming, Farmácia, Pets..."
                 value={categoryName} 
                 onChange={e => setCategoryName(e.target.value)} 
               />

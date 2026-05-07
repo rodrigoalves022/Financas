@@ -17,7 +17,7 @@ export const formatDate = (value?: string): string => {
 };
 
 export const formatMonth = (value?: string): string => {
-  if (!value) return 'Todo periodo';
+  if (!value) return 'Todo o período';
   const [year, month] = value.split('-');
   if (!year || !month) return value;
   return `${month}/${year}`;

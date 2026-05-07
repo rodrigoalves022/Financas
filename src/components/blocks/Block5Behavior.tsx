@@ -29,10 +29,10 @@ export function Block5Behavior({ selectedMonth }: { selectedMonth: string }) {
   const volatilityRows = getCategoryVolatility(transactions, categories).slice(0, 8);
   const anomalyColumns: Column<(typeof anomalies)[number]>[] = [
     { key: 'date', header: 'Data', accessor: row => formatDate(row.date), align: 'center', sortValue: row => row.date },
-    { key: 'description', header: 'Descricao', accessor: row => row.description },
+    { key: 'description', header: 'Descrição', accessor: row => row.description },
     { key: 'categoryName', header: 'Categoria', accessor: row => row.categoryName, align: 'center' },
     { key: 'amount', header: 'Valor', accessor: row => row.amount, render: row => formatBRL(row.amount), align: 'right', sortValue: row => row.amount },
-    { key: 'multiple', header: 'Acima da media', accessor: row => row.multiple, render: row => `${row.multiple.toFixed(1)}x`, align: 'center' },
+    { key: 'multiple', header: 'Acima da média', accessor: row => row.multiple, render: row => `${row.multiple.toFixed(1)}x`, align: 'center' },
   ];
 
   if (!expenses.length) {
@@ -43,20 +43,20 @@ export function Block5Behavior({ selectedMonth }: { selectedMonth: string }) {
     <div className="section-grid">
       <div className="kpi-grid">
         <Kpi label="Assinaturas" value={String(metrics.subscriptionCount)} sub="estabelecimentos detectados" />
-        <Kpi label="Valor medio" value={formatBRL(metrics.avgTicket)} sub={`${expenses.length} compras`} />
+        <Kpi label="Valor médio" value={formatBRL(metrics.avgTicket)} sub={`${expenses.length} compras`} />
         <Kpi label="Dia mais caro" value={metrics.mostExpensiveDay?.label || '-'} sub={formatBRL(metrics.mostExpensiveDay?.average || 0)} />
-        <Kpi label="Maior valor medio" value={metrics.highestTicketCategory?.name || '-'} sub={formatBRL(metrics.highestTicketCategory?.averageTicket || 0)} />
+        <Kpi label="Maior valor médio" value={metrics.highestTicketCategory?.name || '-'} sub={formatBRL(metrics.highestTicketCategory?.averageTicket || 0)} />
       </div>
 
       <div className="chart-card">
-        <h3>Gasto medio por dia da semana</h3>
+        <h3>Gasto médio por dia da semana</h3>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={metrics.weekdays}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="label" {...AXIS_PROPS} />
             <YAxis {...AXIS_PROPS} tickFormatter={value => `R$${value}`} />
             <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} />
-            <Bar dataKey="average" name="Media" radius={[6, 6, 0, 0]}>
+            <Bar dataKey="average" name="Média" radius={[6, 6, 0, 0]}>
               {metrics.weekdays.map((item, index) => (
                 <Cell key={item.label} fill={index === 5 || index === 6 ? '#dc2626' : '#2563eb'} />
               ))}
@@ -66,14 +66,14 @@ export function Block5Behavior({ selectedMonth }: { selectedMonth: string }) {
       </div>
 
       <div className="chart-card">
-        <h3>Valor medio por categoria</h3>
+        <h3>Valor médio por categoria</h3>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={ticketRows} layout="vertical" margin={{ left: 90 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
             <XAxis {...AXIS_PROPS} type="number" tickFormatter={value => `R$${value}`} />
             <YAxis {...AXIS_PROPS} dataKey="name" type="category" width={110} />
             <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} />
-            <Bar dataKey="ticket" name="Media" fill="#0ea5e9" radius={[0, 6, 6, 0]} />
+            <Bar dataKey="ticket" name="Média" fill="#0ea5e9" radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -118,9 +118,9 @@ export function Block5Behavior({ selectedMonth }: { selectedMonth: string }) {
           emptyLabel="Nenhuma recorrencia detectada."
           columns={[
             { key: 'merchant', label: 'Local', value: row => row.merchant, filterable: true },
-            { key: 'confidence', label: 'Situacao', align: 'center', value: row => row.confidence, render: row => <span className={`badge ${row.confidence === 'confirmada' ? 'success' : 'warning'}`}>{row.confidence}</span> },
+            { key: 'confidence', label: 'Situação', align: 'center', value: row => row.confidence, render: row => <span className={`badge ${row.confidence === 'confirmada' ? 'success' : 'warning'}`}>{row.confidence}</span> },
             { key: 'months', label: 'Meses', align: 'center', value: row => row.months },
-            { key: 'average', label: 'Media', align: 'right', value: row => row.average, render: row => formatBRL(row.average) },
+            { key: 'average', label: 'Média', align: 'right', value: row => row.average, render: row => formatBRL(row.average) },
             { key: 'total', label: 'Total', align: 'right', value: row => row.total, render: row => formatBRL(row.total) },
           ]}
         />
@@ -128,11 +128,11 @@ export function Block5Behavior({ selectedMonth }: { selectedMonth: string }) {
 
       <div className="table-card wide">
         <h3>Alertas de anomalia</h3>
-        <DataTable rows={anomalies} columns={anomalyColumns} initialPageSize={8} emptyLabel="Nenhuma compra fora do padrao no periodo." />
+        <DataTable rows={anomalies} columns={anomalyColumns} initialPageSize={8} emptyLabel="Nenhuma compra fora do padrão no período." />
       </div>
 
       <div className="chart-card wide">
-        <h3>Analises automaticas</h3>
+        <h3>Análises automáticas</h3>
         <div className="insight-list">
           {insightRows.map((item, index) => <div className="insight" key={index}>{item}</div>)}
         </div>

@@ -29,7 +29,7 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
       }
       setParsedData(rows);
     } catch {
-      setError('Nao consegui ler o arquivo. Confira se ele tem data, descricao e valor.');
+      setError('Não consegui ler o arquivo. Confira se ele tem data, descrição e valor.');
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
                 <FileUp size={40} />
                 <strong>Arraste arquivos aqui ou clique para selecionar</strong>
                 <span style={{ fontSize: 13, opacity: 0.7 }}>
-                  Formatos aceitos: CSV, OFX. Multiplos arquivos permitidos.
+                  Formatos aceitos: CSV, OFX. Múltiplos arquivos permitidos.
                 </span>
               </>
             )}
@@ -132,7 +132,7 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
           <div className="review-panel">
             <div className="success-line">
               <CheckCircle size={18} /> 
-              <span>{parsedData.length} transacoes prontas para importar</span>
+              <span>{parsedData.length} transações prontas para importar</span>
             </div>
             
             <div className="table-scroll" style={{ maxHeight: 400 }}>
@@ -140,7 +140,7 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
                 <thead>
                   <tr>
                     <th className="align-center" style={{ width: 100 }}>Data</th>
-                    <th className="align-left">Descricao</th>
+                    <th className="align-left">Descrição</th>
                     <th className="align-right" style={{ width: 120 }}>Valor</th>
                     <th className="align-center" style={{ width: 180 }}>Categoria</th>
                   </tr>
@@ -174,7 +174,7 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
             
             {parsedData.length > 200 && (
               <p className="muted" style={{ marginTop: 12, textAlign: 'center' }}>
-                Mostrando os primeiros 200 registros. Todos os {parsedData.length} serao importados.
+                Mostrando os primeiros 200 registros. Todos os {parsedData.length} serão importados.
               </p>
             )}
           </div>
@@ -191,7 +191,7 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
           </button>
           {parsedData.length > 0 && (
             <button type="button" className="primary-button" onClick={confirm}>
-              Importar {parsedData.length} transacoes
+              Importar {parsedData.length} transações
             </button>
           )}
         </footer>

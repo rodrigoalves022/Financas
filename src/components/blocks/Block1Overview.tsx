@@ -1,6 +1,6 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useFinance } from '../../store/FinanceContext';
-import { getFutureInstallments, getMonthlySummaries } from '../../utils/analytics';
+import { getDebtBalance, getFutureInstallments, getMonthlySummaries } from '../../utils/analytics';
 import { AXIS_PROPS, GRID_COLOR, TOOLTIP_PROPS } from '../../utils/chartTheme';
 import { formatBRL, formatMonth } from '../../utils/formatters';
 
@@ -14,21 +14,26 @@ type MonthlyChartRow = {
 };
 
 export function Block1Overview({ selectedMonth }: { selectedMonth: string }) {
-  const { transactions, monthlyIncomes, receivables, members, paidInvoiceMonths } = useFinance();
+  const { transactions, monthlyIncomes, receivables, members, paidInvoiceMonths, debts } = useFinance();
   const summaries = getMonthlySummaries(transactions, monthlyIncomes);
   const scoped = selectedMonth ? summaries.filter(item => item.month === selectedMonth) : summaries;
   const income = scoped.reduce((sum, item) => sum + item.income, 0);
   const expense = scoped.reduce((sum, item) => sum + item.expense, 0);
-  const balance = income - expense;
+  const debtTotal = debts
+    .filter(debt => debt.type === 'a_pagar')
+    .reduce((sum, debt) => sum + getDebtBalance(debt, transactions), 0);
+  const totalCommitment = expense + debtTotal;
+  const balance = income - totalCommitment;
   const invoicePaid = Boolean(selectedMonth && paidInvoiceMonths.includes(selectedMonth));
   const paid = invoicePaid || (balance >= 0 && expense > 0);
-  const coverage = expense ? Math.min(100, (income / expense) * 100) : 0;
+  const coverage = totalCommitment ? Math.min(100, (income / totalCommitment) * 100) : 0;
 
   // KPIs úteis: cobranças pendentes e parcelas futuras
   const ownerIds = new Set(members.filter(m => m.isOwner).map(m => m.id));
-  const pendingReceivables = receivables
+  const pendingOperationalReceivables = receivables
     .filter(r => r.status !== 'quitado' && !ownerIds.has(r.memberId))
     .reduce((sum, r) => sum + (r.amount - r.paidAmount), 0);
+  const pendingReceivables = pendingOperationalReceivables;
   const nextMonths = [1, 2, 3].map(offset => {
     const d = new Date();
     d.setMonth(d.getMonth() + offset);
@@ -50,16 +55,18 @@ export function Block1Overview({ selectedMonth }: { selectedMonth: string }) {
   return (
     <div className="section-grid">
       <div className="kpi-grid">
-        <Kpi label="Receita" value={formatBRL(income)} tone="good" sub={selectedMonth ? formatMonth(selectedMonth) : 'Todo periodo'} />
-        <Kpi label="Valor da fatura" value={formatBRL(expense)} tone="bad" sub="Total de compras" />
+        <Kpi label="Receita" value={formatBRL(income)} tone="good" sub={selectedMonth ? formatMonth(selectedMonth) : 'Todo o período'} />
+        <Kpi label="Valor total" value={formatBRL(totalCommitment)} tone="bad" sub="Fatura + dívidas" />
+        <Kpi label="Valor da fatura" value={formatBRL(expense)} tone="bad" sub="Compras do cartão" />
+        <Kpi label="Dívidas cadastradas" value={formatBRL(debtTotal)} tone={debtTotal > 0 ? 'warn' : 'good'} sub="Compromissos próprios" />
         <Kpi label="Saldo" value={formatBRL(balance)} tone={balance >= 0 ? 'good' : 'bad'} sub={balance >= 0 ? 'Positivo' : 'Em aberto'} />
-        <Kpi label="Situacao" value={paid ? 'Quitada' : balance < 0 ? 'Em aberto' : 'Sem gasto'} tone={paid ? 'good' : balance < 0 ? 'warn' : 'good'} sub="Status da fatura" />
+        <Kpi label="Situação" value={paid ? 'Quitada' : balance < 0 ? 'Em aberto' : 'Sem gasto'} tone={paid ? 'good' : balance < 0 ? 'warn' : 'good'} sub="Status da fatura" />
         <Kpi label="A receber de terceiros" value={formatBRL(pendingReceivables)} tone={pendingReceivables > 0 ? 'warn' : 'good'} sub="Cobranças pendentes" />
         <Kpi label="Parcelas futuras" value={formatBRL(upcomingInstallments)} tone="warn" sub="Próximos 3 meses" />
       </div>
       <div className="chart-card wide">
         <div className="chart-title-row">
-          <h3>Saldo da fatura</h3>
+          <h3>Saldo geral do período</h3>
         </div>
         <div className="invoice-balance-panel">
           <div>
@@ -67,8 +74,8 @@ export function Block1Overview({ selectedMonth }: { selectedMonth: string }) {
             <span>Receita real registrada</span>
           </div>
           <div>
-            <strong>{formatBRL(expense)}</strong>
-            <span>Valor da fatura</span>
+            <strong>{formatBRL(totalCommitment)}</strong>
+            <span>Fatura + dívidas cadastradas</span>
           </div>
           <div>
             <strong className={balance >= 0 ? 'good-text' : 'bad-text'}>{formatBRL(balance)}</strong>

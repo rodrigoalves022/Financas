@@ -53,7 +53,7 @@ export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selected
         </ResponsiveContainer>
       </div>
       <div className="chart-card">
-        <h3>Mapa de proporcao de gastos</h3>
+        <h3>Mapa de proporção de gastos</h3>
         <ResponsiveContainer width="100%" height={300}>
           <Treemap data={treemapRows} dataKey="size" nameKey="name" stroke="#0f172a">
             <Tooltip {...TOOLTIP_PROPS} formatter={value => formatBRL(Number(value || 0))} />
@@ -62,7 +62,7 @@ export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selected
         </ResponsiveContainer>
       </div>
       <div className="chart-card">
-        <h3>Valor x frequencia</h3>
+        <h3>Valor x frequência</h3>
         <ResponsiveContainer width="100%" height={340} minHeight={300}>
           <ScatterChart>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
@@ -76,7 +76,7 @@ export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selected
       </div>
       {monthDiff.length ? (
         <div className="table-card wide">
-          <h3>Comparativo mes a mes</h3>
+          <h3>Comparativo mês a mês</h3>
           <DataTable
             rows={monthDiff}
             emptyLabel="Selecione dois meses para comparar."
@@ -84,7 +84,7 @@ export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selected
               { key: 'name', label: 'Categoria', sortable: true, filterable: true, value: row => row.name },
               { key: 'current', label: selectedMonth, align: 'right', sortable: true, value: row => row.current, render: row => formatBRL(row.current) },
               { key: 'compare', label: compareMonth, align: 'right', sortable: true, value: row => row.compare, render: row => formatBRL(row.compare) },
-              { key: 'diff', label: 'Diferenca', align: 'right', sortable: true, value: row => row.diff, render: row => <span className={row.diff > 0 ? 'bad-text' : 'good-text'}>{formatBRL(row.diff)}</span> },
+              { key: 'diff', label: 'Diferença', align: 'right', sortable: true, value: row => row.diff, render: row => <span className={row.diff > 0 ? 'bad-text' : 'good-text'}>{formatBRL(row.diff)}</span> },
               { key: 'percent', label: '%', align: 'center', sortable: true, value: row => row.percent || 0, render: row => row.percent === null ? '-' : `${row.percent.toFixed(1)}%` },
             ]}
           />
@@ -94,13 +94,13 @@ export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selected
         <h3>Ranking por categoria</h3>
         <DataTable
           rows={categoryTotals}
-          emptyLabel="Nenhuma categoria com gasto no periodo."
+          emptyLabel="Nenhuma categoria com gasto no período."
           columns={[
             { key: 'name', label: 'Categoria', sortable: true, filterable: true, value: row => row.name },
             { key: 'total', label: 'Total', align: 'right', sortable: true, value: row => row.total, render: row => formatBRL(row.total) },
             { key: 'percent', label: '%', align: 'center', sortable: true, value: row => row.percent, render: row => `${row.percent.toFixed(1)}%` },
             { key: 'count', label: 'Qtd', align: 'center', sortable: true, value: row => row.count },
-            { key: 'averageTicket', label: 'Ticket medio', align: 'right', sortable: true, value: row => row.averageTicket, render: row => formatBRL(row.averageTicket) },
+            { key: 'averageTicket', label: 'Ticket médio', align: 'right', sortable: true, value: row => row.averageTicket, render: row => formatBRL(row.averageTicket) },
           ]}
         />
       </div>
@@ -113,7 +113,7 @@ export function Block2WhereMoneyWent({ selectedMonth, compareMonth }: { selected
             { key: 'merchant', label: 'Local', sortable: true, filterable: true, value: row => row.merchant },
             { key: 'total', label: 'Total', align: 'right', sortable: true, value: row => row.total, render: row => formatBRL(row.total) },
             { key: 'count', label: 'Qtd', align: 'center', sortable: true, value: row => row.count },
-            { key: 'averageTicket', label: 'Ticket medio', align: 'right', sortable: true, value: row => row.averageTicket, render: row => formatBRL(row.averageTicket) },
+            { key: 'averageTicket', label: 'Ticket médio', align: 'right', sortable: true, value: row => row.averageTicket, render: row => formatBRL(row.averageTicket) },
             { key: 'variants', label: 'Variantes', value: row => row.variants.join(' / '), render: row => <span className="muted">{row.variants.join(' / ')}</span> },
           ]}
         />

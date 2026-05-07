@@ -88,7 +88,7 @@ export function Block4Debts() {
         interestRate: 0,
         startDate: new Date().toISOString().substring(0, 10),
         linkedTransactionIds: [],
-        note: 'Total operacional em cobrancas, divisoes, emprestimos e Pix',
+        note: 'Total operacional em cobranças, divisões, empréstimos e Pix',
         remaining: total.all,
         progress: 0,
         risk: 'Controlado',
@@ -138,7 +138,7 @@ export function Block4Debts() {
     { key: 'monthlyPayment', header: 'Parcela', accessor: row => row.currentInstallment && row.totalInstallments ? `${formatBRL(row.monthlyPayment)} ${row.currentInstallment}/${row.totalInstallments}` : formatBRL(row.monthlyPayment), align: 'right' },
     { key: 'interestRate', header: 'Juros', accessor: row => `${row.interestRate}%`, align: 'center', sortValue: row => row.interestRate },
     { key: 'risk', header: 'Risco', accessor: row => row.risk, align: 'center', render: row => <span className={`badge ${row.risk === 'Alto' ? 'danger' : row.risk === 'Medio' ? 'warning' : 'success'}`}>{row.risk}</span> },
-    { key: 'startDate', header: 'Inicio', accessor: row => formatDate(row.startDate), align: 'center', sortValue: row => row.startDate },
+    { key: 'startDate', header: 'Início', accessor: row => formatDate(row.startDate), align: 'center', sortValue: row => row.startDate },
     { key: 'note', header: 'Nota', accessor: row => row.note || '', align: 'left' },
   ];
 
@@ -150,7 +150,7 @@ export function Block4Debts() {
   ];
 
   if (!rows.length) {
-    return <div className="empty-state">Cadastre dividas, emprestimos ou valores a receber para acompanhar saldo, risco e quitacao.</div>;
+    return <div className="empty-state">Cadastre dívidas, empréstimos ou valores a receber para acompanhar saldo, risco e quitação.</div>;
   }
 
   return (
@@ -159,7 +159,7 @@ export function Block4Debts() {
         <Kpi label="Total a pagar" value={formatBRL(totals.payable)} tone="danger" sub="Eu devo" />
         <Kpi label="Total a receber" value={formatBRL(totals.receivable)} tone="success" sub="Me devem" />
         <Kpi label="Parcela mensal" value={formatBRL(totals.monthly)} tone="warning" sub="Compromisso fixo" />
-        <Kpi label="Maior juros" value={`${totals.highestRate.toFixed(2)}%`} tone={totals.highestRate >= 3 ? 'danger' : 'info'} sub="ao mes" />
+        <Kpi label="Maior juros" value={`${totals.highestRate.toFixed(2)}%`} tone={totals.highestRate >= 3 ? 'danger' : 'info'} sub="ao mês" />
       </div>
 
       <div className="chart-card">
@@ -177,7 +177,7 @@ export function Block4Debts() {
 
       <div className="chart-card">
         <div className="chart-title-row">
-          <h3>Simulacao de quitacao</h3>
+          <h3>Simulação de quitação</h3>
           <label className="slider-label">
             Aporte extra {formatBRL(extraPayment)}
             <input type="range" min="0" max="3000" step="50" value={extraPayment} onChange={event => setExtraPayment(Number(event.target.value))} />
@@ -194,7 +194,7 @@ export function Block4Debts() {
               <Line dataKey="extra" name="Com aporte" stroke="#16a34a" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
-        ) : <div className="empty-state compact">Sem divida a pagar para simular.</div>}
+        ) : <div className="empty-state compact">Sem dívida a pagar para simular.</div>}
       </div>
 
       <div className="chart-card wide">

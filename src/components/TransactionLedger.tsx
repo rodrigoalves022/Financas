@@ -5,6 +5,7 @@ import { useFinance } from '../store/FinanceContext';
 import { applyAlias, filterByMonth } from '../utils/analytics';
 import { formatBRL, formatDate, normalizeMerchant } from '../utils/formatters';
 import { DataTable, type Column } from './ui/DataTable';
+import { MobileTransactionCard } from './ui/MobileTransactionCard';
 import type { Member, Transaction } from '../types';
 
 export function TransactionLedger({ selectedMonth }: { selectedMonth: string }) {
@@ -32,7 +33,7 @@ export function TransactionLedger({ selectedMonth }: { selectedMonth: string }) 
 
   const columns: Column<Transaction>[] = [
     { key: 'date', header: 'Data', accessor: row => formatDate(row.date), align: 'center', sortValue: row => row.date },
-    { key: 'description', header: 'Descricao', accessor: row => row.description, align: 'center' },
+    { key: 'description', header: 'Descrição', accessor: row => row.description, align: 'center' },
     { key: 'merchant', header: 'Local', accessor: row => localName(row), align: 'center', filterable: true },
     { key: 'amount', header: 'Valor', accessor: row => row.amount, render: row => formatBRL(row.amount), align: 'center', sortValue: row => row.amount },
     { key: 'category', header: 'Categoria', accessor: row => categoryName(row.categoryId), align: 'center', render: row => (
@@ -42,10 +43,10 @@ export function TransactionLedger({ selectedMonth }: { selectedMonth: string }) 
     ) },
     { key: 'responsible', header: 'Vai pagar', accessor: row => payersOf(row), align: 'center' },
     { key: 'note', header: 'Nota', accessor: row => row.note || '', align: 'center', render: row => (
-      <input className="inline-input" value={row.note || ''} onChange={event => updateNote(row.id, event.target.value)} placeholder="Observacao" />
+      <input className="inline-input" value={row.note || ''} onChange={event => updateNote(row.id, event.target.value)} placeholder="Observação" />
     ) },
     { key: 'installment', header: 'Parcela', accessor: row => row.installment || '', align: 'center', render: row => row.installment || '-' },
-    { key: 'actions', header: 'Acoes', accessor: () => '', align: 'center', sortable: false, filterable: false, render: row => (
+    { key: 'actions', header: 'Ações', accessor: () => '', align: 'center', sortable: false, filterable: false, render: row => (
       <div className="row-button-group">
         <button className="small-action" onClick={() => setAliasTransaction(row)} title="Definir alias do local"><Pencil size={14} /> Alias</button>
         <button className="small-action" onClick={() => setSplitTransaction(row)} title="Dividir compra"><HandCoins size={14} /> Dividir</button>
@@ -56,10 +57,43 @@ export function TransactionLedger({ selectedMonth }: { selectedMonth: string }) 
   return (
     <div className="table-card wide">
       <div className="chart-title-row">
-        <h3>Transacoes</h3>
-        <span className="muted">{selectedMonth ? 'Filtrado pela fatura selecionada' : 'Todo o periodo'}</span>
+        <h3>Transações</h3>
+        <span className="muted">{selectedMonth ? 'Filtrado pela fatura selecionada' : 'Todo o período'}</span>
       </div>
-      <DataTable rows={rows} columns={columns} searchPlaceholder="Buscar data, local, descricao, categoria..." initialPageSize={20} emptyLabel="Nenhuma transacao no periodo." />
+      <DataTable
+        rows={rows}
+        columns={columns}
+        searchPlaceholder="Buscar data, local, descrição, categoria..."
+        initialPageSize={20}
+        emptyLabel="Nenhuma transação no período."
+        mobileRender={row => (
+          <MobileTransactionCard
+            title={localName(row)}
+            subtitle={`${formatDate(row.date)} · ${row.installment || 'Sem parcela'}`}
+            value={formatBRL(row.amount)}
+            description={row.description}
+            actions={(
+              <>
+                <button className="small-action" onClick={() => setAliasTransaction(row)} title="Definir alias do local"><Pencil size={14} /> Alias</button>
+                <button className="small-action" onClick={() => setSplitTransaction(row)} title="Dividir compra"><HandCoins size={14} /> Dividir</button>
+              </>
+            )}
+          >
+            <div className="mobile-card-grid">
+              <label>Categoria
+                <select value={row.categoryId} onChange={event => updateCategory(row.id, event.target.value)}>
+                  {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </label>
+              <div>
+                <span>Vai pagar</span>
+                <strong>{payersOf(row)}</strong>
+              </div>
+            </div>
+            <input className="inline-input mobile-note" value={row.note || ''} onChange={event => updateNote(row.id, event.target.value)} placeholder="Observação" />
+          </MobileTransactionCard>
+        )}
+      />
       {aliasTransaction ? <AliasDialog transaction={aliasTransaction} currentAlias={localName(aliasTransaction)} onSave={addAlias} onClose={() => setAliasTransaction(null)} /> : null}
       {splitTransaction ? <SplitDialog transaction={splitTransaction} onClose={() => setSplitTransaction(null)} /> : null}
     </div>
@@ -180,7 +214,7 @@ function SplitDialog({
             <strong>{selectedMembers.length || 0} pessoa(s)</strong>
             <span>{selectedMembers.length === 1 ? `${formatBRL(transaction.amount)} para essa pessoa` : selectedMembers.length ? `${formatBRL(share)} para cada` : 'Clique nos nomes de quem vai pagar'}</span>
           </div>
-          <button className="primary-button full" type="submit">{selectedMembers.length ? existingMembers.length ? 'Atualizar divisao' : 'Gerar cobrancas' : 'Remover divisao'}</button>
+          <button className="primary-button full" type="submit">{selectedMembers.length ? existingMembers.length ? 'Atualizar divisão' : 'Gerar cobranças' : 'Remover divisão'}</button>
         </form>
       </div>
     </div>

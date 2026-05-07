@@ -41,12 +41,12 @@ export function Block3Cashflow({ selectedMonth }: { selectedMonth: string }) {
   return (
     <div className="section-grid">
       <div className="kpi-grid">
-        <Kpi label="Melhor mes" value={best ? formatBRL(best.balance) : formatBRL(0)} sub={best ? formatMonth(best.month) : 'Sem dados'} />
-        <Kpi label="Pior mes" value={worst ? formatBRL(worst.balance) : formatBRL(0)} sub={worst ? formatMonth(worst.month) : 'Sem dados'} />
-        <Kpi label="Projecao" value={formatBRL(movingAverage)} sub="Media movel 3 meses" />
+        <Kpi label="Melhor mês" value={best ? formatBRL(best.balance) : formatBRL(0)} sub={best ? formatMonth(best.month) : 'Sem dados'} />
+        <Kpi label="Pior mês" value={worst ? formatBRL(worst.balance) : formatBRL(0)} sub={worst ? formatMonth(worst.month) : 'Sem dados'} />
+        <Kpi label="Projeção" value={formatBRL(movingAverage)} sub="Média móvel 3 meses" />
       </div>
       <div className="chart-card wide">
-        <h3>Saldo mensal e projecao</h3>
+        <h3>Saldo mensal e projeção</h3>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={chartRows}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
@@ -62,7 +62,7 @@ export function Block3Cashflow({ selectedMonth }: { selectedMonth: string }) {
         </ResponsiveContainer>
       </div>
       <div className="chart-card">
-        <h3>Indice de sazonalidade</h3>
+        <h3>Índice de sazonalidade</h3>
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={chartRows.filter(item => !item.projected)}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
@@ -79,7 +79,7 @@ export function Block3Cashflow({ selectedMonth }: { selectedMonth: string }) {
         </ResponsiveContainer>
       </div>
       <div className="chart-card wide">
-        <h3>Composicao do saldo mensal</h3>
+        <h3>Composição do saldo mensal</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={waterfallRows}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />

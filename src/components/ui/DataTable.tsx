@@ -22,6 +22,7 @@ interface DataTableProps<T> {
   searchPlaceholder?: string;
   initialPageSize?: number;
   pageSize?: number;
+  mobileRender?: (row: T) => ReactNode;
 }
 
 export function DataTable<T>({
@@ -31,6 +32,7 @@ export function DataTable<T>({
   searchPlaceholder = 'Buscar na tabela',
   initialPageSize,
   pageSize = 12,
+  mobileRender,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState(columns[0]?.key || '');
@@ -79,7 +81,7 @@ export function DataTable<T>({
   };
 
   return (
-    <div className="table-shell">
+    <div className={`table-shell ${mobileRender ? 'has-mobile-cards' : ''}`}>
       <div className="table-toolbar">
         <div className="table-search">
           <Search size={16} />
@@ -131,11 +133,18 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
+      {mobileRender ? (
+        <div className="mobile-table-list">
+          {visibleRows.map((row, index) => (
+            <div key={index}>{mobileRender(row)}</div>
+          ))}
+        </div>
+      ) : null}
       {!visibleRows.length ? <div className="empty-state compact">{emptyLabel}</div> : null}
       <div className="table-footer">
         <button type="button" disabled={currentPage === 1} onClick={() => setPage(previous => Math.max(1, previous - 1))}>Anterior</button>
-        <span>Pagina {currentPage} de {pageCount}</span>
-        <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(previous => Math.min(pageCount, previous + 1))}>Proxima</button>
+        <span>Página {currentPage} de {pageCount}</span>
+        <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(previous => Math.min(pageCount, previous + 1))}>Próxima</button>
       </div>
     </div>
   );

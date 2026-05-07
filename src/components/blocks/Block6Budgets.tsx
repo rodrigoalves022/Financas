@@ -31,7 +31,7 @@ export function Block6Budgets({ selectedMonth }: { selectedMonth: string }) {
       .map(item => ({
         date: item.startDate,
         description: item.counterparty,
-        category: 'Dividas',
+        category: 'Dívidas',
         amount: item.monthlyPayment,
         type: 'Parcela fixa',
       }));
@@ -68,7 +68,7 @@ export function Block6Budgets({ selectedMonth }: { selectedMonth: string }) {
 
   const columns: Column<PlanningRow>[] = [
     { key: 'date', header: 'Data', accessor: row => formatDate(row.date), align: 'center', sortValue: row => row.date },
-    { key: 'description', header: 'Descricao', accessor: row => row.description },
+    { key: 'description', header: 'Descrição', accessor: row => row.description },
     { key: 'category', header: 'Categoria', accessor: row => row.category, align: 'center' },
     { key: 'type', header: 'Tipo', accessor: row => row.type, align: 'center' },
     { key: 'amount', header: 'Valor', accessor: row => row.amount, render: row => formatBRL(row.amount), align: 'right' },

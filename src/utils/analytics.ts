@@ -259,8 +259,8 @@ export const getInsights = (transactions: Transaction[], categories: Category[],
 
   return [
     outlierMonth ? `Mes ${outlierMonth.month} gastou mais de 30% acima da media.` : '',
-    expensiveWeekday ? `${expensiveWeekday.label} tem ticket medio acima de 2x a media geral.` : '',
-    highestTicket ? `${highestTicket.name} tem o maior ticket medio: ${highestTicket.averageTicket.toFixed(2)}.` : '',
+    expensiveWeekday ? `${expensiveWeekday.label} tem ticket médio acima de 2x a média geral.` : '',
+    highestTicket ? `${highestTicket.name} tem o maior ticket médio: ${highestTicket.averageTicket.toFixed(2)}.` : '',
     categoryTotals[0] ? `${categoryTotals[0].name} concentra ${categoryTotals[0].percent.toFixed(1)}% dos gastos.` : '',
   ].filter(Boolean);
 };
