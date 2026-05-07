@@ -1,73 +1,103 @@
-# React + TypeScript + Vite
+# Finanças
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema pessoal de controle financeiro para acompanhar faturas de cartão, receitas reais, cobranças de terceiros, empréstimos/Pix, dívidas próprias e evolução dos gastos.
 
-Currently, two official plugins are available:
+O projeto é uma aplicação **React + TypeScript + Vite**, com visualizações em **Recharts** e empacotamento mobile via **Capacitor**.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- Recharts
+- date-fns
+- Papaparse
+- Capacitor Android
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Como rodar
 
-## Expanding the ESLint configuration
+Instale as dependências:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Rode em desenvolvimento:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+Gere a versão de produção:
+
+```bash
+npm run build
+```
+
+Valide o código:
+
+```bash
+npm run lint
+```
+
+## Android
+
+Depois de gerar o build web:
+
+```bash
+npm run build
+npx cap sync android
+npx cap open android
+```
+
+No Android Studio, gere o APK pela opção de build do projeto Android.
+
+## Módulos do sistema
+
+- **Painel**: visão somente leitura com resumo do período, fatura, saldo, categorias, comportamento de consumo e planejamento.
+- **Receitas**: cadastro manual das entradas reais de dinheiro. O sistema soma várias receitas no mesmo mês.
+- **Transações**: revisão da fatura importada, categoria, alias de estabelecimento, nota e divisão de compra.
+- **Membros**: cadastro das pessoas usadas em divisões, cobranças e empréstimos.
+- **Divisões e cobranças**: controle do que terceiros precisam pagar por compras no cartão.
+- **Empréstimos e Pix**: valores emprestados fora do cartão, em dinheiro ou Pix.
+- **Dívidas**: financiamentos, empréstimos e compromissos próprios.
+- **Importação**: upload/processamento de arquivos CSV/OFX e faturas locais.
+
+## Regras importantes
+
+- Receita só existe quando cadastrada explicitamente em **Receitas**.
+- Marcar fatura como quitada não cria receita.
+- `paidInvoiceMonths` controla status da fatura, não renda.
+- `monthlyIncomes` controla receita real.
+- Pix via cartão fica em **Transações**.
+- Pix/dinheiro emprestado fora do cartão fica em **Empréstimos e Pix**.
+- Cobranças de terceiros ficam em `receivables`.
+- Dívidas próprias ficam em `debts`.
+- O dashboard é somente leitura: sem cadastro, edição ou botões que alterem estado.
+
+## Dados e persistência
+
+O app usa `localStorage` para persistir dados no navegador/dispositivo:
+
+- Transações importadas
+- Receitas mensais
+- Categorias e regras
+- Aliases de estabelecimento
+- Membros
+- Cobranças
+- Empréstimos/Pix
+- Dívidas
+- Faturas quitadas
+
+Também existe exportação/importação de dados em JSON para backup.
+
+## Build validado
+
+Antes de enviar alterações, rode:
+
+```bash
+npm run lint
+npm run build
+```
+
