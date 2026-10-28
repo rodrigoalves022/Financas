@@ -12,6 +12,11 @@ financas.db
 
 Faturas/
 
+# Caixa de entrada local do app (dados pessoais aplicados pelo npm run dev)
+inbox/
+
+*.tsbuildinfo
+
 .DS_Store
 Thumbs.db
 
