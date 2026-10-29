@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL, analyzeFinances, checkAiProviders, clip, extractJson, runAi, type AiProvider } from './aiCli.js';
+import { DEFAULT_MODEL, PROVIDER_LABEL, analyzeFinances, checkAiProviders, clip, extractJson, runAi, type AiProvider } from './aiCli.js';
 import { geminiEnabled, parseWithGemini, toCommand, type AiParsedCommand } from './gemini.js';
 import type { ParsedCommand } from './parser.js';
 import type { Snapshot } from './types.js';
@@ -7,37 +7,74 @@ import type { Snapshot } from './types.js';
 // resumo que o app manda no snapshot, e gera as dicas da fatura. Prefere os CLIs desta
 // máquina (assinatura, sem chave); sem eles, cai para a API do Gemini só na interpretação.
 //
-// BOT_AI: auto (padrão) | antigravity | claude | gemini | off
-// BOT_AI_MODEL: modelo da interpretação (vazio = um rápido do provedor)
+// BOT_AI: auto (padrão) | gemini | off | lista em ordem de preferência, cada item com modelo
+//   opcional — "claude:opus,antigravity" usa o Opus e, se o Claude não estiver logado ou a
+//   chamada falhar (limite da assinatura, timeout), o Antigravity com os modelos padrão.
+// BOT_AI_MODEL: modelo da primeira IA da lista quando ela não traz um (formato antigo)
 
 type BotAiMode = 'antigravity' | 'claude' | 'gemini' | 'off';
+interface BotAiChoice { provider: AiProvider; model?: string }
 
 const CONFIGURED = (process.env.BOT_AI || 'auto').trim().toLowerCase();
 const CONFIGURED_MODEL = process.env.BOT_AI_MODEL?.trim() || undefined;
 // Interpretar uma frase precisa ser rápido; as dicas usam o modelo padrão, mais caprichado.
+// Um modelo escrito no BOT_AI vale para as duas coisas.
 const FAST_MODEL: Record<AiProvider, string> = { antigravity: 'gemini-3.8-flash-medium', claude: 'haiku' };
 const INTERPRET_TIMEOUT_MS = 90_000;
+const AUTO_ORDER: BotAiChoice[] = [{ provider: 'antigravity' }, { provider: 'claude' }];
 
-let resolved: { at: number; mode: BotAiMode } | null = null;
+const parsedOrder = CONFIGURED.split(',').flatMap((item): BotAiChoice[] => {
+  const [provider, model] = item.split(':').map(part => part.trim());
+  return provider === 'claude' || provider === 'antigravity' ? [{ provider, model: model || undefined }] : [];
+});
+// Valor que não lista nenhum CLI (auto, ou digitado errado) segue a ordem automática.
+const PREFERENCE = (parsedOrder.length ? parsedOrder : AUTO_ORDER)
+  .map((choice, index) => index === 0 && !choice.model && CONFIGURED_MODEL ? { ...choice, model: CONFIGURED_MODEL } : choice);
 
-/** Qual IA o bot usa agora — no modo auto, o primeiro CLI disponível (revisto a cada 10 min). */
+const modelFor = (choice: BotAiChoice, purpose: 'interpret' | 'tips') =>
+  choice.model || (purpose === 'interpret' ? FAST_MODEL : DEFAULT_MODEL)[choice.provider];
+
+let resolved: { at: number; ready: BotAiChoice[] } | null = null;
+
+/** CLIs da lista instalados e logados agora, na ordem de preferência (revisto a cada 10 min). */
+const readyChoices = async (): Promise<BotAiChoice[]> => {
+  if (CONFIGURED === 'off' || CONFIGURED === 'gemini') return [];
+  if (resolved && Date.now() - resolved.at < 600_000) return resolved.ready;
+  const status = await checkAiProviders().catch(() => null);
+  const ready = PREFERENCE.filter(choice => status?.providers[choice.provider]?.available);
+  resolved = { at: Date.now(), ready };
+  return ready;
+};
+
+/** A IA que o bot tenta primeiro: o CLI preferido disponível, a API do Gemini, ou nenhuma. */
 export const botAiMode = async (): Promise<BotAiMode> => {
   if (CONFIGURED === 'off') return 'off';
-  if (CONFIGURED === 'gemini') return geminiEnabled ? 'gemini' : 'off';
-  if (resolved && Date.now() - resolved.at < 600_000) return resolved.mode;
-  const status = await checkAiProviders().catch(() => null);
-  const order: AiProvider[] = CONFIGURED === 'claude' ? ['claude'] : CONFIGURED === 'antigravity' ? ['antigravity'] : ['antigravity', 'claude'];
-  const provider = order.find(item => status?.providers[item]?.available);
-  const mode: BotAiMode = provider || (geminiEnabled ? 'gemini' : 'off');
-  resolved = { at: Date.now(), mode };
-  return mode;
+  const [first] = await readyChoices();
+  return first?.provider || (geminiEnabled ? 'gemini' : 'off');
+};
+
+/** Tenta cada CLI na ordem; o próximo só entra se o anterior falhar. */
+const withFallback = async <T>(choices: BotAiChoice[], task: (choice: BotAiChoice) => Promise<T>): Promise<T> => {
+  let lastError: unknown = new Error('Nenhum CLI de IA disponível.');
+  for (const choice of choices) {
+    try {
+      return await task(choice);
+    } catch (error) {
+      lastError = error;
+      console.warn(`[bot-ai] ${PROVIDER_LABEL[choice.provider]} falhou:`, error instanceof Error ? error.message : error);
+    }
+  }
+  throw lastError;
 };
 
 export const describeBotAi = async () => {
   const mode = await botAiMode();
   if (mode === 'off') return 'Desativada (sem CLI de IA nem GEMINI_API_KEY)';
   if (mode === 'gemini') return 'API do Gemini (só interpreta frases; dicas e perguntas precisam de um CLI)';
-  return `${mode === 'antigravity' ? 'Antigravity CLI' : 'Claude CLI'} · ${CONFIGURED_MODEL || FAST_MODEL[mode]} (dicas: ${DEFAULT_MODEL[mode]})`;
+  const ready = await readyChoices();
+  const missing = PREFERENCE.filter(choice => !ready.includes(choice)).map(choice => PROVIDER_LABEL[choice.provider]);
+  return ready.map(choice => `${PROVIDER_LABEL[choice.provider]} · ${modelFor(choice, 'interpret')} (dicas: ${modelFor(choice, 'tips')})`).join(' → reserva: ')
+    + (missing.length ? ` — fora do ar: ${missing.join(', ')}` : '');
 };
 
 export type BotAiReply =
@@ -90,17 +127,19 @@ Formato:
 {"kind":"...","personName":"","personNames":[],"amount":0,"description":"","includeOwner":false,"detailed":false,"answer":""}`;
 
   try {
-    const run = await runAi(prompt, { provider: mode, model: CONFIGURED_MODEL || FAST_MODEL[mode], timeoutMs: INTERPRET_TIMEOUT_MS });
-    const parsed = extractJson<AiParsedCommand & { answer?: string }>(run.text);
+    // O JSON é lido dentro da tentativa: resposta quebrada de uma IA também passa para a próxima.
+    const parsed = await withFallback(await readyChoices(), async choice => {
+      const run = await runAi(prompt, { provider: choice.provider, model: modelFor(choice, 'interpret'), timeoutMs: INTERPRET_TIMEOUT_MS });
+      return extractJson<AiParsedCommand & { answer?: string }>(run.text);
+    });
     if (parsed.kind === 'pergunta') {
       const answer = clip(parsed.answer || '', 1200).trim();
       return answer ? { kind: 'answer', text: answer } : null;
     }
     const command = toCommand(parsed);
     return command.kind === 'unrecognized' ? null : { kind: 'command', command };
-  } catch (error) {
-    console.warn('[bot-ai] Falha ao interpretar:', error instanceof Error ? error.message : error);
-    // O CLI falhou (timeout, sessão expirada): a API do Gemini ainda pode salvar o comando.
+  } catch {
+    // Todos os CLIs falharam (já registrados no log): a API do Gemini ainda pode salvar o comando.
     const command = geminiEnabled ? await parseWithGemini(message, names) : null;
     return command && command.kind !== 'unrecognized' ? { kind: 'command', command } : null;
   }
@@ -111,9 +150,10 @@ const TONE_EMOJI = { positivo: '✅', atencao: '⚠️', neutro: '💡' } as con
 /** Dicas da fatura em texto puro (sem Markdown: o texto da IA quebraria a formatação). */
 export const generateTips = async (snapshot?: Snapshot): Promise<string> => {
   if (!snapshot?.financeSummary) return 'Ainda não recebi o resumo da fatura. Abra o app (versão atual) com a sincronização do Telegram ligada e tente de novo.';
-  const mode = await botAiMode();
-  if (mode === 'off' || mode === 'gemini') return 'As dicas precisam de um CLI de IA (Claude Code ou Antigravity) logado no computador onde o servidor roda.';
-  const result = await analyzeFinances({ summary: snapshot.financeSummary, provider: mode, model: DEFAULT_MODEL[mode] });
+  const choices = await readyChoices();
+  if (!choices.length) return 'As dicas precisam de um CLI de IA (Claude Code ou Antigravity) logado no computador onde o servidor roda.';
+  const summary = snapshot.financeSummary;
+  const result = await withFallback(choices, choice => analyzeFinances({ summary, provider: choice.provider, model: modelFor(choice, 'tips') }));
   if (!result.insights.length) return 'A IA não encontrou nada relevante desta vez.';
   const month = (snapshot.financeSummary as { mesAnalisado?: string }).mesAnalisado;
   const header = `💡 Dicas${month ? ` — fatura ${month}` : ''} (${result.model}, ${Math.round(result.durationMs / 1000)}s)`;

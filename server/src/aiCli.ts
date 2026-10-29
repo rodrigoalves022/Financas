@@ -13,7 +13,7 @@ export type AiProvider = (typeof AI_PROVIDERS)[number];
 
 export const CLAUDE_MODELS = ['haiku', 'sonnet', 'opus'] as const;
 export const DEFAULT_MODEL: Record<AiProvider, string> = { claude: 'sonnet', antigravity: 'gemini-4-argon-medium' };
-const PROVIDER_LABEL: Record<AiProvider, string> = { claude: 'Claude CLI', antigravity: 'Antigravity CLI' };
+export const PROVIDER_LABEL: Record<AiProvider, string> ={ claude: 'Claude CLI', antigravity: 'Antigravity CLI' };
 
 // Classificação é texto puro: nenhuma ferramenta (arquivo, shell, web) é necessária.
 const CLAUDE_DISALLOWED_TOOLS = 'Bash,Edit,Write,Read,Glob,Grep,WebFetch,WebSearch,NotebookEdit,Task,Agent,TodoWrite';

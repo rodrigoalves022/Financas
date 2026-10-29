@@ -97,4 +97,4 @@ Se este servidor rodar num computador com o **Antigravity** (`agy`) ou o **Claud
 - `dicas` gera uma leitura da fatura com onde economizar;
 - as rotas de IA do app respondem aqui, protegidas pelo mesmo `SYNC_TOKEN`: `GET /api/ai/status`, `POST /api/ai/categorize`, `POST /api/ai/insights` (no app, escolha "Servidor do Telegram" em "Onde roda").
 
-Configure com `BOT_AI` e `BOT_AI_MODEL` (veja `.env.example`); o log de inicialização mostra qual IA ficou ativa. Na imagem Docker não há CLI: o bot cai para a API do Gemini (se houver `GEMINI_API_KEY`) só para interpretar frases.
+Configure com `BOT_AI` (veja `.env.example`). Ele aceita uma ordem de preferência com o modelo de cada IA — `BOT_AI=claude:opus,antigravity` usa o Opus e, se o Claude não estiver logado ou a chamada falhar (limite da assinatura, timeout), o Antigravity. O log de inicialização mostra a ordem que ficou ativa. Na imagem Docker não há CLI: o bot cai para a API do Gemini (se houver `GEMINI_API_KEY`) só para interpretar frases.

@@ -394,7 +394,7 @@ Cada lançamento guarda `categorySource`; fontes 5 e 6 formam a fila "a revisar"
 ## Telegram com IA
 
 - O app manda o mesmo resumo agregado no snapshot (`financeSummary`).
-- Mensagem que as regras fixas não entendem vai para a IA (`BOT_AI`: auto, antigravity, claude, gemini, off; auto usa o primeiro CLI disponível e cai para a API do Gemini só na interpretação). Uma chamada só classifica a intenção e, se for pergunta, já responde com os números do resumo.
+- Mensagem que as regras fixas não entendem vai para a IA (`BOT_AI`: auto, gemini, off ou uma ordem de preferência com modelo, como `claude:opus,antigravity`; cada CLI disponível é tentado na ordem quando o anterior falha, e sem nenhum o bot cai para a API do Gemini só na interpretação). Uma chamada só classifica a intenção e, se for pergunta, já responde com os números do resumo.
 - `dicas` (ou o botão depois de importar uma fatura) gera as dicas com o modelo padrão do provedor.
 - Fatura no chat: CSV/OFX até 2 MB vira o evento `importar_fatura`. O app escolhe o mês pela legenda ("11/2026", "novembro"), pelo nome do arquivo (se não for uma data completa) ou pela compra à vista mais recente e o fechamento do cartão; grava como `fatura-inter-AAAA-MM`, reconcilia com `RESYNC_TRANSACTIONS` (mandar de novo não duplica; a versão fechada substitui a parcial) e soma a assinatura do conteúdo sem apagar as antigas, para uma versão anterior em `public/faturas` não ser reimportada por cima.
 

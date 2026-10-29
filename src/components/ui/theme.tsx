@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { FLAGS, readFlag, writeFlag } from '../../store/storage';
 
 export type ThemeMode = 'dark' | 'light';
@@ -54,6 +55,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.dataset.theme = theme;
     root.dataset.accent = accent;
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0d0e11' : '#f4f5f7');
+    // No APK a página fica por baixo da barra de status: os ícones dela seguem o tema do app, não o do celular.
+    if (Capacitor.isNativePlatform()) {
+      SystemBars.setStyle({ style: theme === 'dark' ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(() => undefined);
+    }
     const [from, to] = ACCENTS[accent].dark;
     const ink = accent === 'grafite' ? '#111318' : '#ffffff';
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');

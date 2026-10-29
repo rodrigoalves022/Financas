@@ -8,7 +8,7 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--experimental-sqlite tsx watch src/index.ts",
+    "dev": "cross-env NODE_OPTIONS=--experimental-sqlite tsx watch --include .env src/index.ts",
     "build": "tsc -b",
     "start": "node --experimental-sqlite dist/index.js"
   },
